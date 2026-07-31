@@ -446,7 +446,7 @@
       grid.innerHTML += `
         <div class="day-cell" onclick="openViewModal('${dateStr}')">
           <div class="day-header">
-            <span class="day-num ${isRedDay ? 'is-holiday':''}">${day} ${holidayName ? `<span class="holiday-name">${holidayName}</span>`:''}</span>
+            <span class="day-num ${isRedDay ? 'is-holiday':''} ${holidayName ? 'has-holiday':''}">${day} ${holidayName ? `<span class="holiday-name">${holidayName}</span>`:''}</span>
             <span class="lunar-text">${lunarText}</span>
           </div>
           ${tagsHTML}
@@ -492,7 +492,6 @@
     }
 
     loadCurrentEmpExistingDates();
-    selectType('休');
     renderMultiCalendar();
     document.getElementById('multiModal').style.display = 'flex';
   }
@@ -502,7 +501,7 @@
     renderMultiCalendar();
   }
 
-  // 自動載入該員工目前月份已經排過的日期
+  // 自動載入該員工目前月份已經排過的日期，並判斷是「休」還是「指休」
   function loadCurrentEmpExistingDates() {
     let empToApply = currentUser;
     if (currentUser.role === 'admin') {
@@ -511,16 +510,25 @@
     }
 
     selectedMultiDates = [];
+    let foundType = '休'; // 預設
+
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const daySchedules = (state.schedules && state.schedules[dateStr]) || [];
-      const hasScheduled = daySchedules.some(s => s.empName.toLowerCase() === empToApply.name.toLowerCase());
-      if (hasScheduled) {
+      const userSchedule = daySchedules.find(s => s.empName.toLowerCase() === empToApply.name.toLowerCase());
+      
+      if (userSchedule) {
         selectedMultiDates.push(dateStr);
+        // 如果抓到的紀錄有指定休，就優先套用指定休的按鈕狀態
+        if (userSchedule.type === '指休') {
+          foundType = '指休';
+        }
       }
     }
+
+    selectType(foundType);
   }
 
   function selectType(type) {
@@ -582,7 +590,6 @@
 
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
-    // 遍歷本月所有日子，根據這次彈窗內「最終有沒有被勾選」來決定要新增還是移除
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const isCheckedInModal = selectedMultiDates.includes(dateStr);
