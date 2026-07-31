@@ -253,7 +253,7 @@
   let userExistingSchedules = {}; 
   let selectedMultiDates = []; 
 
-  let holidays = {}; // 自動從政府 API 抓取
+  let holidays = {}; 
 
   const lunarNames = ["初一","初二","初三","初四","初五","初六","初七","初八","初九","初十",
                       "十一","十二","十三","十四","十五","十六","十七","十八","十九","二十",
@@ -272,16 +272,14 @@
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
-  // 自動從政府 API 抓取行政院人事行政總處辦公日曆表 (包含國定假日、補假、彈性放假)
+  // 自動從行政院人事行政總處辦公日曆表 API 抓取
   async function fetchHolidays() {
     try {
       const res = await fetch(`https://cdn.jsdelivr.net/gh/ruyisi/Taiwan-Holidays-Calendar/data/${currentYear}.json`);
       if (res.ok) {
         const data = await res.json();
-        // 格式化放入 holidays 物件
         holidays = {};
         data.forEach(item => {
-          // item.date: "20260101", item.isHoliday: true, item.name: "開國紀念日"
           if (item.isHoliday) {
             let y = item.date.substring(0,4);
             let m = item.date.substring(4,6);
@@ -291,7 +289,6 @@
         });
       }
     } catch(e) {
-      // 網路失敗時的備用預設重要假日
       holidays = {
         [`${currentYear}-01-01`]: "元旦", [`${currentYear}-02-28`]: "和平紀念",
         [`${currentYear}-04-04`]: "兒童節", [`${currentYear}-04-05`]: "清明節",
@@ -309,7 +306,6 @@
           state = val;
           if (!state.employees) state.employees = [];
           if (!state.schedules) state.schedules = {};
-          // 確保舊員工資料也有欄位
           state.employees.forEach(e => {
             if (!e.hireDate) e.hireDate = getTodayDateStr();
             if (!e.resignDate) e.resignDate = "";
@@ -518,16 +514,26 @@
           <div><span class="dot" style="background:${e.color}"></span><strong>${e.name}</strong></div>
           <div class="flex">
             <button class="secondary" style="font-size:0.7em; padding:2px 6px;" onclick="resetEmpPassword('${e.username}')">重置密碼</button>
-            <button class="danger" style="font-size:0.7em; padding:2px 6px;" onclick="deleteEmployee('${e.username}', '${e.name}')">刪除/離職</button>
+            <button class="secondary" style="font-size:0.7em; padding:2px 6px;" onclick="editResignDate('${e.username}')">設定離職日</button>
+            <button class="danger" style="font-size:0.7em; padding:2px 6px;" onclick="deleteEmployee('${e.username}', '${e.name}')">刪除</button>
           </div>
         </div>
         <div style="font-size: 0.75em; color: #64748b;" class="flex">
-          <span>到職日: <strong>${e.hireDate || '未設定'}</strong></span>
+          <span>到職日: <input type="date" value="${e.hireDate || ''}" style="padding: 2px 6px; font-size: 0.85em;" onchange="updateHireDate('${e.username}', this.value)"></span>
           <span style="margin-left: 8px;">離職日: <strong>${e.resignDate || '無'}</strong></span>
-          <button class="secondary" style="font-size: 0.65em; padding: 1px 4px; margin-left: auto;" onclick="editResignDate('${e.username}')">設定離職日</button>
         </div>
       </div>
     `).join('');
+  }
+
+  function updateHireDate(username, newHireDate) {
+    const emp = state.employees.find(e => e.username.toLowerCase() === username.toLowerCase());
+    if (!emp) return;
+
+    emp.hireDate = newHireDate;
+    commitChanges(() => {
+      alert(`✅ ${emp.name} 的到職日已更新！`);
+    });
   }
 
   function resetEmpPassword(username) {
@@ -807,7 +813,7 @@
     currentMonth += delta;
     if (currentMonth < 0) { currentMonth = 11; currentYear--; }
     if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-    fetchHolidays(); // 切換月份時自動抓取該年份的假日資料
+    fetchHolidays(); 
   }
 </script>
 
