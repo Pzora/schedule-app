@@ -142,9 +142,9 @@
 
     <div id="registerForm" style="display: none; margin-top: 8px;">
       <div class="flex">
-        <input type="text" id="regUser" placeholder="暱稱" style="width: 32%;">
-        <input type="password" id="regPass" placeholder="密碼" style="width: 32%;">
-        <input type="color" id="regColor" value="#3b82f6" style="width: 32px; height: 30px; padding: 0;">
+        <input type="text" id="regUser" placeholder="暱稱" style="width: 30%;">
+        <input type="password" id="regPass" placeholder="密碼" style="width: 30%;">
+        <input type="color" id="regColor" value="#3b82f6" title="選擇代表顏色" style="width: 28px; height: 30px; padding: 0; border:none; background:none; cursor:pointer;">
         <button onclick="register()">註冊</button>
       </div>
     </div>
@@ -153,11 +153,14 @@
   <!-- 登入後狀態面板 -->
   <div class="card" id="userCard" style="display: none;">
     <div class="flex" style="justify-content: space-between;">
-      <div style="font-size:0.85em;">
+      <div class="flex" style="font-size:0.85em;">
+        <span class="dot" id="userColorDot" style="width:12px; height:12px;"></span>
         <strong>登入：</strong> <span id="currentUserText">--</span> 
         (<span id="userRoleText">--</span>)
       </div>
       <div class="flex">
+        <!-- 員工專用：隨時更改代表顏色 -->
+        <input type="color" id="updateColorInput" title="更改我的代表顏色" style="width: 28px; height: 26px; padding: 0; border:none; background:none; cursor:pointer;" onchange="updateMyColor(this.value)">
         <button class="secondary" style="font-size:0.75em; padding:3px 6px;" onclick="logout()">登出</button>
       </div>
     </div>
@@ -187,7 +190,7 @@
   </div>
 </div>
 
-<!-- 右下角懸浮按鈕 (+) 使用 SVG 精準居中 -->
+<!-- 右下角懸浮按鈕 (+) -->
 <div class="fab-btn" id="fabBtn" onclick="openMultiScheduleModal()" style="display: none;">
   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
     <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -216,7 +219,7 @@
       <select id="targetEmpSelect" style="width:100%; margin-top:2px;" onchange="onTargetEmpChange()"></select>
     </div>
 
-    <!-- 選擇假別 (只剩期望休與指定休) -->
+    <!-- 選擇假別 -->
     <div style="font-size:0.8em; font-weight:bold; margin-bottom:4px;">1. 選擇假別：</div>
     <div class="flex" style="margin-bottom:10px;">
       <button id="btnTypeOff" style="flex:1; background:#3b82f6; padding: 8px 4px;" onclick="selectType('休')">期望休假</button>
@@ -257,7 +260,7 @@
   let isRegisterMode = false;
   
   let selectedType = '休'; 
-  let userExistingSchedules = {}; // 記錄該員工本月所有的排休狀況 { 'YYYY-MM-DD': '休' 或 '指休' }
+  let userExistingSchedules = {}; 
   let selectedMultiDates = []; 
 
   const holidays = {
@@ -313,6 +316,14 @@
         }
         if (currentUser) showLoggedInUI();
       } catch(e) {}
+    } else if (currentUser && currentUser.role === 'employee') {
+      // 即時同步最新資料（例如顏色被改掉時）
+      const emp = state.employees.find(e => e.username.toLowerCase() === currentUser.username.toLowerCase());
+      if (emp) {
+        currentUser = { ...emp, role: 'employee' };
+        document.getElementById('userColorDot').style.background = currentUser.color;
+        document.getElementById('updateColorInput').value = currentUser.color;
+      }
     }
   }
 
@@ -383,9 +394,13 @@
     
     if (currentUser.role === 'admin') {
       document.getElementById('adminPanel').style.display = 'block';
+      document.getElementById('updateColorInput').style.display = 'none'; // 主管不需要改顏色
       renderEmpManagementList();
     } else {
       document.getElementById('adminPanel').style.display = 'none';
+      document.getElementById('updateColorInput').style.display = 'inline-block';
+      document.getElementById('userColorDot').style.background = currentUser.color;
+      document.getElementById('updateColorInput').value = currentUser.color;
     }
     renderCalendar();
   }
@@ -399,17 +414,68 @@
     renderCalendar();
   }
 
+  // 讓員工隨時更改自己的代表顏色，並且一併更新已排日期的標籤顏色
+  function updateMyColor(newColor) {
+    if (!currentUser || currentUser.role === 'admin') return;
+    
+    const emp = state.employees.find(e => e.username.toLowerCase() === currentUser.username.toLowerCase());
+    if (emp) {
+      emp.color = newColor;
+      currentUser.color = newColor;
+    }
+
+    // 同步更新所有已排行程中的顏色
+    for (let dateStr in state.schedules) {
+      state.schedules[dateStr].forEach(s => {
+        if (s.empName.toLowerCase() === currentUser.name.toLowerCase()) {
+          s.color = newColor;
+        }
+      });
+    }
+
+    commitChanges(() => {
+      document.getElementById('userColorDot').style.background = newColor;
+      renderCalendar();
+      alert("✅ 代表顏色已更新！");
+    });
+  }
+
   function renderEmpManagementList() {
     const list = document.getElementById('empManagementList');
     list.innerHTML = state.employees.map(e => `
       <div class="emp-row">
         <div style="font-size:0.85em;"><span class="dot" style="background:${e.color}"></span><strong>${e.name}</strong></div>
         <div>
-          <button class="secondary" style="font-size:0.7em;" onclick="resetEmpPass('${e.username}')">重置</button>
-          <button class="danger" style="font-size:0.7em;" onclick="deleteEmp('${e.username}')">刪除</button>
+          <button class="danger" style="font-size:0.7em;" onclick="deleteEmployee('${e.username}', '${e.name}')">刪除/離職</button>
         </div>
       </div>
     `).join('');
+  }
+
+  // 主管刪除員工：可選擇從哪個日期開始清除後續排休，或直接全部清除
+  function deleteEmployee(username, name) {
+    let dateInput = prompt(`請輸入該員工的「離職生效日期」(格式: YYYY-MM-DD)\n若要刪除該員工所有月份的排休，請直接留空按確定：`, `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`);
+    
+    if (dateInput === null) return; // 按取消
+
+    dateInput = dateInput.trim();
+
+    // 1. 從員工名單中移除
+    state.employees = state.employees.filter(e => e.username.toLowerCase() !== username.toLowerCase());
+
+    // 2. 清除排休紀錄
+    for (let dateStr in state.schedules) {
+      if (dateInput === "" || dateStr >= dateInput) {
+        // 如果符合刪除條件（大於等於離職日期，或未指定日期全清），過濾掉該員工
+        state.schedules[dateStr] = state.schedules[dateStr].filter(s => s.empName.toLowerCase() !== name.toLowerCase());
+      }
+    }
+
+    commitChanges(() => {
+      renderEmpManagementList();
+      renderCalendar();
+      alert(`✅ 已成功將員工 ${name} 移除，並自動清理其後續排休！`);
+    });
   }
 
   function renderCalendar() {
@@ -493,7 +559,7 @@
     }
 
     loadCurrentEmpExistingSchedules();
-    selectType('休'); // 預設選中期望休
+    selectType('休'); 
     document.getElementById('multiModal').style.display = 'flex';
   }
 
@@ -502,7 +568,6 @@
     selectType(selectedType);
   }
 
-  // 掃描該員工本月所有的排休狀況
   function loadCurrentEmpExistingSchedules() {
     let empToApply = currentUser;
     if (currentUser.role === 'admin') {
@@ -519,7 +584,7 @@
       const userSchedule = daySchedules.find(s => s.empName.toLowerCase() === empToApply.name.toLowerCase());
       
       if (userSchedule) {
-        userExistingSchedules[dateStr] = userSchedule.type; // '休' 或 '指休'
+        userExistingSchedules[dateStr] = userSchedule.type; 
       }
     }
   }
@@ -529,7 +594,6 @@
     document.getElementById('btnTypeOff').style.opacity = type === '休' ? '1' : '0.5';
     document.getElementById('btnTypeSpec').style.opacity = type === '指休' ? '1' : '0.5';
 
-    // 當切換假別時，把該假別原本已排過的日子載入到選取清單中
     selectedMultiDates = [];
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     for (let day = 1; day <= daysInMonth; day++) {
@@ -565,15 +629,13 @@
       const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const isSelected = selectedMultiDates.includes(dateStr);
       const existingType = userExistingSchedules[dateStr];
-      
-      // 判斷是否為另一種假別佔據（即需要淺亮且無法點擊）
       const isOtherTypeOccupied = existingType && existingType !== selectedType;
 
       let cssClass = "";
       if (isOverDeadline) {
         cssClass = "disabled";
       } else if (isOtherTypeOccupied) {
-        cssClass = "disabled-other-type"; // 另一種假別的淺亮鎖定狀態
+        cssClass = "disabled-other-type"; 
       } else if (isSelected) {
         cssClass = "selected";
       }
@@ -614,22 +676,17 @@
 
       if (!state.schedules[dateStr]) state.schedules[dateStr] = [];
 
-      // 如果這天本來就是「目前正在編輯的假別」
       if (existingType === selectedType) {
-        // 如果在彈窗中被取消勾選了，就從雲端移除該紀錄
         if (!isCheckedInModal) {
           state.schedules[dateStr] = state.schedules[dateStr].filter(s => s.empName.toLowerCase() !== empToApply.name.toLowerCase());
         }
-      } 
-      // 如果這天本來是空的，但現在被勾選了，就新增進去
-      else if (!existingType && isCheckedInModal) {
+      } else if (!existingType && isCheckedInModal) {
         state.schedules[dateStr].push({
           empName: capitalizeName(empToApply.name),
           type: selectedType,
           color: empToApply.color || '#3b82f6'
         });
       }
-      // （如果是被另一種假別佔據的格子，因為不能動，所以保持原本雲端的資料不變）
     }
 
     commitChanges(() => {
