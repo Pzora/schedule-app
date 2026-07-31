@@ -14,7 +14,7 @@
     .container { max-width: 1100px; margin: 0 auto; position: relative; }
     .card { background: white; padding: 14px 16px; border-radius: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 12px; }
     .flex { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    button { background: var(--primary); color: white; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 0.85em; font-weight: 600; }
+    button { background: var(--primary); color: white; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 0.85em; font-weight: 600; white-space: nowrap; }
     button.secondary { background: #64748b; }
     button.danger { background: #ef4444; }
     button.success { background: #10b981; }
@@ -77,7 +77,7 @@
       }
     }
 
-    /* 懸浮加號按鈕 (+) */
+    /* 懸浮加號按鈕 (+) 修正垂直居中 */
     .fab-btn {
       position: fixed;
       right: calc(50vw - 530px);
@@ -87,7 +87,6 @@
       border-radius: 50%;
       background: var(--primary);
       color: white;
-      font-size: 28px;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -187,8 +186,13 @@
   </div>
 </div>
 
-<!-- 右下角懸浮按鈕 (+) -->
-<div class="fab-btn" id="fabBtn" onclick="openMultiScheduleModal()" style="display: none;">+</div>
+<!-- 右下角懸浮按鈕 (+) 使用 SVG 精準居中 -->
+<div class="fab-btn" id="fabBtn" onclick="openMultiScheduleModal()" style="display: none;">
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="12" y1="5" x2="12" y2="19"></line>
+    <line x1="5" y1="12" x2="19" y2="12"></line>
+  </svg>
+</div>
 
 <!-- 1. 查看當日排休人員彈窗 -->
 <div class="modal" id="viewModal">
@@ -214,9 +218,9 @@
     <!-- 選擇假別 -->
     <div style="font-size:0.8em; font-weight:bold; margin-bottom:4px;">1. 選擇假別：</div>
     <div class="flex" style="margin-bottom:10px;">
-      <button id="btnTypeOff" style="flex:1; background:#3b82f6;" onclick="selectType('休')">普通休假 (休)</button>
-      <button id="btnTypeSpec" style="flex:1; background:#64748b;" onclick="selectType('指休')">指定休假 (＊指休)</button>
-      <button id="btnTypeClear" style="flex:1; background:#ef4444;" onclick="selectType('清除')">🗑️ 清除</button>
+      <button id="btnTypeOff" style="flex:1; background:#3b82f6; padding: 8px 4px;" onclick="selectType('休')">期望休假</button>
+      <button id="btnTypeSpec" style="flex:1; background:#64748b; padding: 8px 4px;" onclick="selectType('指休')">指定休假</button>
+      <button id="btnTypeClear" style="flex:1; background:#ef4444; padding: 8px 4px;" onclick="selectType('清除')">🗑️ 清除</button>
     </div>
 
     <!-- 選擇日期網格 -->
@@ -311,7 +315,6 @@
     }
   }
 
-  /* 核心：直接寫入/儲存資料庫 */
   function commitChanges(callback) {
     if (useFirebase) {
       db.ref('scheduleState').set(state, (err) => {
@@ -467,7 +470,7 @@
             <strong>${capitalizeName(s.empName)}</strong>
           </div>
           <span style="font-size:0.8em; font-weight:bold; color:${s.color};">
-            ${s.type === '指休' ? '＊指定休假' : '普通休假'}
+            ${s.type === '指休' ? '指定休假' : '期望休假'}
           </span>
         </div>
       `).join('');
@@ -542,7 +545,6 @@
     renderMultiCalendar();
   }
 
-  /* 修正處：按確認儲存後直接自動 commit，一步到位！ */
   function saveMultiSchedule() {
     if (selectedMultiDates.length === 0) return alert("請至少選擇一天日期！");
 
@@ -568,7 +570,6 @@
       }
     });
 
-    // 點擊即直接寫入資料庫
     commitChanges(() => {
       renderCalendar();
       closeModal('multiModal');
