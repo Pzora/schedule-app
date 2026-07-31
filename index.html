@@ -7,7 +7,7 @@
   <!-- 引入 Firebase 雲端資料庫 -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <!-- 引入精準農曆與節氣計算套件 lunar-javascript -->
+  <!-- 引入精準農曆計算套件 -->
   <script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.6.12/lunar.js"></script>
   <style>
     :root { --primary: #4f46e5; --bg: #f8fafc; }
@@ -550,6 +550,42 @@
     });
   }
 
+  // 台灣行政院行事曆國定假日對應表（固定國定假日 + 農曆大節）
+  function getTaiwanHoliday(year, month, day) {
+    const md = `${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    
+    // 固定的國定假日
+    const fixedHolidays = {
+      "01-01": "開國紀念日",
+      "02-28": "和平紀念日",
+      "04-04": "兒童節",
+      "05-01": "勞動節",
+      "10-10": "國慶日"
+    };
+    if (fixedHolidays[md]) return fixedHolidays[md];
+
+    // 清明節（大約在 4/4 或 4/5，透過 solar 計算）
+    const solarObj = Solar.fromYmd(year, month, day);
+    const lunarObj = solarObj.getLunar();
+
+    // 農曆重要節日
+    const lunarMonth = lunarObj.getMonth();
+    const lunarDay = lunarObj.getDay();
+
+    if (lunarMonth === 1 && lunarDay === 1) return "農曆春節";
+    if (lunarMonth === 1 && lunarDay === 2) return "春節初二";
+    if (lunarMonth === 1 && lunarDay === 3) return "春節初三";
+    if (lunarMonth === 5 && lunarDay === 5) return "端午節";
+    if (lunarMonth === 8 && lunarDay === 15) return "中秋節";
+    if (lunarMonth === 12 && lunarDay === lunarObj.getMonthDays()) return "除夕";
+
+    // 節氣判斷清明節
+    const jq = lunarObj.getJieQi();
+    if (jq === "清明") return "清明節";
+
+    return "";
+  }
+
   function renderCalendar() {
     document.getElementById('monthTitle').innerText = `${currentYear} / ${String(currentMonth + 1).padStart(2, '0')}`;
     const grid = document.getElementById('calendarGrid');
@@ -571,23 +607,13 @@
       const dayOfWeek = dayObj.getDay();
       const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
       
-      // 使用 lunar-javascript 計算農曆
       const solarObj = Solar.fromYmd(currentYear, currentMonth + 1, day);
       const lunarObj = solarObj.getLunar();
+      const lunarDayStr = lunarObj.getDayInChinese();
       
-      const lunarDayStr = lunarObj.getDayInChinese(); // 例如「初一」、「十五」
-      
-      // 只挑選台灣人通用的農曆重要節日（例如中秋節、端午節、除夕、春節等），過濾掉其他怪怪的節日
-      const lunarFestivals = lunarObj.getFestivals();
-      let holidayName = "";
-      for (let f of lunarFestivals) {
-        if (["中秋節", "端午節", "春節", "除夕", "元宵節", "七夕", "重陽節"].includes(f)) {
-          holidayName = f;
-          break;
-        }
-      }
+      // 取得台灣行政院標準國定假日/農曆大節
+      const holidayName = getTaiwanHoliday(currentYear, currentMonth + 1, day);
 
-      // 台灣國定假日簡單對應（例如 9/3 軍人節或其它，若不需要可保持乾淨，這裡示範保留中秋等大節）
       const isRedDay = isWeekend || holidayName !== "";
       const daySchedules = (state.schedules && state.schedules[dateStr]) || [];
 
@@ -756,7 +782,7 @@
   function saveMultiSchedule() {
     let empToApply = currentUser;
     if (currentUser.role === 'admin') {
-      const targetUsername = document.getElementById('targetEmpSelect').value;
+      const targetUsername = document.getElementById('targetEmpSelect'].value;
       empToApply = state.employees.find(e => e.username.toLowerCase() === targetUsername.toLowerCase()) || currentUser;
     }
 
