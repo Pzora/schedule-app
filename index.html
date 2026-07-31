@@ -568,20 +568,26 @@
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const dayObj = new Date(currentYear, currentMonth, day);
-      const isWeekend = (dayObj.getDay() === 0 || dayObj.getDay() === 6);
+      const dayOfWeek = dayObj.getDay();
+      const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
       
-      // 利用 lunar-javascript 套件動態計算精準農曆與節日
+      // 使用 lunar-javascript 計算農曆
       const solarObj = Solar.fromYmd(currentYear, currentMonth + 1, day);
       const lunarObj = solarObj.getLunar();
       
       const lunarDayStr = lunarObj.getDayInChinese(); // 例如「初一」、「十五」
       
-      // 抓取農曆節日（如中秋節、端午節等）或節氣
+      // 只挑選台灣人通用的農曆重要節日（例如中秋節、端午節、除夕、春節等），過濾掉其他怪怪的節日
       const lunarFestivals = lunarObj.getFestivals();
-      const solarFestivals = solarObj.getFestivals();
-      const allFestivals = [...lunarFestivals, ...solarFestivals];
-      const holidayName = allFestivals.length > 0 ? allFestivals[0] : "";
+      let holidayName = "";
+      for (let f of lunarFestivals) {
+        if (["中秋節", "端午節", "春節", "除夕", "元宵節", "七夕", "重陽節"].includes(f)) {
+          holidayName = f;
+          break;
+        }
+      }
 
+      // 台灣國定假日簡單對應（例如 9/3 軍人節或其它，若不需要可保持乾淨，這裡示範保留中秋等大節）
       const isRedDay = isWeekend || holidayName !== "";
       const daySchedules = (state.schedules && state.schedules[dateStr]) || [];
 
