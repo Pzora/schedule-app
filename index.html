@@ -77,10 +77,10 @@
       }
     }
 
-    /* 修正後的懸浮加號按鈕 (+)：對齊月曆容器 */
+    /* 懸浮加號按鈕 (+) */
     .fab-btn {
       position: fixed;
-      right: calc(50vw - 530px); /* 在大螢幕下靠齊月曆右緣 */
+      right: calc(50vw - 530px);
       bottom: 30px;
       width: 56px;
       height: 56px;
@@ -97,22 +97,25 @@
       transition: transform 0.2s;
     }
     @media (max-width: 1100px) {
-      .fab-btn { right: 20px; } /* 小於寬螢幕時貼右 20px */
+      .fab-btn { right: 20px; }
     }
     .fab-btn:active { transform: scale(0.92); }
 
     /* 彈窗 */
     .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 100; }
-    .modal-content { background: white; padding: 18px; border-radius: 14px; width: 92%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); max-height: 90vh; overflow-y: auto; }
+    .modal-content { background: white; padding: 18px; border-radius: 14px; width: 92%; max-width: 420px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); max-height: 90vh; overflow-y: auto; }
     
     .schedule-list-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; margin: 8px 0; }
     .schedule-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px dashed #cbd5e1; font-size: 0.9em; }
     .schedule-item:last-child { border-bottom: none; }
     .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
 
-    /* 多選日曆小格子 */
+    /* 多選日曆小格子 (加強月曆感) */
     .multi-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin: 10px 0; }
+    .multi-weekday { font-size: 0.75em; text-align: center; font-weight: bold; color: #64748b; padding-bottom: 4px; }
+    .multi-weekday.weekend { color: #ef4444; }
     .multi-day { text-align: center; padding: 8px 0; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.85em; cursor: pointer; }
+    .multi-day.empty { border: none; cursor: default; }
     .multi-day.selected { background: var(--primary); color: white; font-weight: bold; border-color: var(--primary); }
     .multi-day.disabled { opacity: 0.3; cursor: not-allowed; }
 
@@ -396,7 +399,6 @@
     showLoggedInUI();
   }
 
-  /* 修正處：明確控管主管面板的顯示與隱藏 */
   function showLoggedInUI() {
     document.getElementById('loginCard').style.display = 'none';
     document.getElementById('userCard').style.display = 'block';
@@ -408,7 +410,7 @@
       document.getElementById('adminPanel').style.display = 'block';
       renderEmpManagementList();
     } else {
-      document.getElementById('adminPanel').style.display = 'none'; // 強制隱藏主管面板
+      document.getElementById('adminPanel').style.display = 'none';
     }
     renderCalendar();
   }
@@ -528,10 +530,24 @@
     document.getElementById('btnTypeClear').style.opacity = type === '清除' ? '1' : '0.5';
   }
 
+  /* 修正處：多選小日曆加上「星期標號」與「第一天對應星期補空格」 */
   function renderMultiCalendar() {
     const grid = document.getElementById('multiCalendarGrid');
     grid.innerHTML = '';
 
+    // 1. 渲染星期標頭 (日 ~ 六)
+    const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+    weekdays.forEach((w, idx) => {
+      grid.innerHTML += `<div class="multi-weekday ${idx===0||idx===6 ? 'weekend':''}">${w}</div>`;
+    });
+
+    // 2. 算當月第一天星期幾，補上空白區域
+    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+    for (let i = 0; i < firstDay; i++) {
+      grid.innerHTML += `<div class="multi-day empty"></div>`;
+    }
+
+    // 3. 渲染每一天數字
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     const now = new Date();
     const deadline = new Date(state.deadline);
