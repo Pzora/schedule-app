@@ -2,39 +2,72 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- 針對手機最佳化的 Viewport 設定 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>單位排休系統</title>
   <!-- 引入 Firebase 雲端資料庫 -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <style>
     :root { --primary: #4f46e5; --bg: #f3f4f6; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 15px; background: var(--bg); color: #333; }
-    .container { max-width: 800px; margin: 0 auto; }
-    .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 15px; }
+    * { box-sizing: border-box; } /* 確保邊框不撐大寬度 */
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 10px 8px; background: var(--bg); color: #333; }
+    .container { max-width: 100%; margin: 0 auto; }
+    .card { background: white; padding: 12px 10px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 10px; }
     h2, h3, h4 { margin-top: 0; }
-    .flex { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    button { background: var(--primary); color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; }
+    .flex { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    button { background: var(--primary); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.9em; }
     button.secondary { background: #6b7280; }
     button.danger { background: #ef4444; }
     button.success { background: #10b981; font-weight: bold; }
-    input, select { padding: 8px; border: 1px solid #ccc; border-radius: 6px; }
+    input, select { padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9em; }
     
-    .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-    .weekday { font-weight: bold; text-align: center; padding: 5px; background: #e5e7eb; border-radius: 4px; }
-    .day-cell { background: white; border: 1px solid #e5e7eb; min-height: 90px; padding: 5px; border-radius: 6px; cursor: pointer; position: relative; }
-    .day-cell.other-month { opacity: 0.3; background: #f9fafb; }
-    .day-num { font-weight: bold; font-size: 0.9em; margin-bottom: 4px; }
-    .tag { font-size: 0.75em; padding: 2px 6px; border-radius: 10px; color: white; margin-bottom: 2px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    
+    /* 修正手機滿版 grid */
+    .calendar-grid { 
+      display: grid; 
+      grid-template-columns: repeat(7, 1fr); 
+      gap: 2px; 
+      width: 100%;
+    }
+    .weekday { font-weight: bold; text-align: center; padding: 4px 0; background: #e5e7eb; border-radius: 4px; font-size: 0.8em; }
+    
+    .day-cell { 
+      background: white; 
+      border: 1px solid #e5e7eb; 
+      min-height: 62px; 
+      padding: 2px; 
+      border-radius: 4px; 
+      cursor: pointer; 
+      position: relative;
+      overflow: hidden;
+    }
+    .day-cell.other-month { opacity: 0.2; background: #f9fafb; }
+    .day-num { font-weight: bold; font-size: 0.8em; margin-bottom: 2px; line-height: 1; }
+    
+    /* 標籤微調（適合手機顯示） */
+    .tag { 
+      font-size: 0.65em; 
+      padding: 1px 3px; 
+      border-radius: 4px; 
+      color: white; 
+      margin-bottom: 2px; 
+      display: block; 
+      white-space: nowrap; 
+      overflow: hidden; 
+      text-overflow: ellipsis; 
+      text-align: center;
+      line-height: 1.2;
+    }
 
     .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 100; }
-    .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; }
+    .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 360px; }
     .option-btn { width: 100%; text-align: left; padding: 10px; margin-bottom: 8px; border-radius: 8px; border: none; color: white; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; }
-    .dot { width: 12px; height: 12px; border-radius: 50%; background: white; display: inline-block; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: white; display: inline-block; }
     
-    .emp-row { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #eee; width: 100%; }
-    .save-bar { background: #fffbebfb; border: 1px solid #fcd34d; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+    .emp-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #eee; width: 100%; }
+    .save-bar { background: #fffbebfb; border: 1px solid #fcd34d; padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
   </style>
 </head>
 <body>
@@ -43,15 +76,15 @@
   <!-- 登入 / 註冊卡片 -->
   <div class="card" id="loginCard">
     <div class="flex" style="justify-content: space-between;">
-      <h3 id="authTitle" style="margin:0;">🔑 使用者登入</h3>
-      <button class="secondary" style="font-size:0.8em;" onclick="toggleAuthMode()" id="toggleAuthBtn">沒有帳號？點此註冊</button>
+      <h3 id="authTitle" style="margin:0; font-size: 1.1em;">🔑 使用者登入</h3>
+      <button class="secondary" style="font-size:0.75em; padding:4px 8px;" onclick="toggleAuthMode()" id="toggleAuthBtn">沒有帳號？註冊</button>
     </div>
 
     <!-- 登入表單 -->
     <div id="loginForm" style="margin-top: 10px;">
       <div class="flex">
-        <input type="text" id="loginUser" placeholder="員工暱稱">
-        <input type="password" id="loginPass" placeholder="密碼">
+        <input type="text" id="loginUser" placeholder="暱稱" style="width: 40%;">
+        <input type="password" id="loginPass" placeholder="密碼" style="width: 38%;">
         <button onclick="login()">登入</button>
       </div>
     </div>
@@ -59,10 +92,10 @@
     <!-- 註冊表單 (預設隱藏) -->
     <div id="registerForm" style="display: none; margin-top: 10px;">
       <div class="flex">
-        <input type="text" id="regUser" placeholder="設定員工暱稱">
-        <input type="password" id="regPass" placeholder="設定密碼">
-        <label style="font-size: 0.9em; color:#666;">代表色：<input type="color" id="regColor" value="#3b82f6"></label>
-        <button onclick="register()">建立帳號並登入</button>
+        <input type="text" id="regUser" placeholder="暱稱" style="width: 35%;">
+        <input type="password" id="regPass" placeholder="密碼" style="width: 35%;">
+        <input type="color" id="regColor" value="#3b82f6" style="width: 35px; height: 32px; padding: 0;">
+        <button onclick="register()">註冊</button>
       </div>
     </div>
   </div>
@@ -70,55 +103,55 @@
   <!-- 登入後狀態面板 -->
   <div class="card" id="userCard" style="display: none;">
     <div class="flex" style="justify-content: space-between;">
-      <div>
-        <strong>當前登入：</strong> <span id="currentUserText">--</span> 
+      <div style="font-size:0.9em;">
+        <strong>登入：</strong> <span id="currentUserText">--</span> 
         (<span id="userRoleText">--</span>)
       </div>
       <div class="flex">
-        <button class="secondary" onclick="toggleChangePassPanel()">🔒 修改密碼</button>
-        <button class="secondary" onclick="logout()">登出</button>
+        <button class="secondary" style="font-size:0.8em; padding:4px 8px;" onclick="toggleChangePassPanel()">改密碼</button>
+        <button class="secondary" style="font-size:0.8em; padding:4px 8px;" onclick="logout()">登出</button>
       </div>
     </div>
 
-    <!-- 修改密碼區 (須輸入舊密碼) -->
-    <div id="changePassPanel" style="display: none; margin-top: 15px; border-top: 1px dotted #ccc; padding-top: 15px; background: #f9fafb; padding: 10px; border-radius: 8px;">
-      <h4 style="margin-bottom: 8px;">✏️ 修改密碼</h4>
+    <!-- 修改密碼區 -->
+    <div id="changePassPanel" style="display: none; margin-top: 10px; border-top: 1px dotted #ccc; padding-top: 10px; background: #f9fafb; padding: 8px; border-radius: 8px;">
+      <h4 style="margin-bottom: 6px; font-size: 0.9em;">✏️ 修改密碼</h4>
       <div class="flex">
-        <input type="password" id="oldPass" placeholder="請輸入舊密碼">
-        <input type="password" id="newPass" placeholder="請輸入新密碼">
-        <button onclick="changePassword()">確認修改</button>
+        <input type="password" id="oldPass" placeholder="舊密碼" style="width: 38%;">
+        <input type="password" id="newPass" placeholder="新密碼" style="width: 38%;">
+        <button onclick="changePassword()">確認</button>
       </div>
     </div>
 
     <!-- 主管專屬管理區 -->
-    <div id="adminPanel" style="display: none; margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
-      <h3>⚙️ 主管管理面板</h3>
+    <div id="adminPanel" style="display: none; margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px;">
+      <h3 style="font-size:1em; margin-bottom: 8px;">⚙️ 主管管理面板</h3>
       
-      <h4>1. 設定本月截止日期</h4>
+      <h4 style="font-size:0.85em; margin-bottom: 4px;">1. 設定截止時間</h4>
       <div class="flex">
         <input type="date" id="deadlineDate">
         <input type="time" id="deadlineTime" value="23:59">
-        <button onclick="saveDeadline()">儲存截止時間</button>
+        <button onclick="saveDeadline()">儲存</button>
       </div>
-      <p id="currentDeadlineText" style="font-size:0.85em; color: #666;"></p>
+      <p id="currentDeadlineText" style="font-size:0.75em; color: #666; margin: 4px 0 10px 0;"></p>
 
-      <h4>2. 員工帳號管理（刪除 / 重置密碼）</h4>
+      <h4 style="font-size:0.85em; margin-bottom: 4px;">2. 員工管理</h4>
       <div id="empManagementList"></div>
     </div>
   </div>
 
   <!-- 未儲存提示與儲存按鈕條 -->
   <div class="save-bar" id="saveBar" style="display: none;">
-    <span style="color: #b45309; font-weight: bold;">⚠️ 您有尚未送出的排休變更！</span>
-    <button class="success" onclick="commitChanges()">💾 送出／儲存變更至雲端</button>
+    <span style="color: #b45309; font-weight: bold; font-size: 0.8em;">⚠️ 有未儲存變更！</span>
+    <button class="success" style="font-size: 0.8em; padding: 6px 10px;" onclick="commitChanges()">💾 送出 / 儲存</button>
   </div>
 
   <!-- 月曆區 -->
-  <div class="card">
+  <div class="card" style="padding: 10px 6px;">
     <div class="calendar-header">
-      <button onclick="changeMonth(-1)">❮ 上個月</button>
-      <h2 id="monthTitle" style="margin:0;"></h2>
-      <button onclick="changeMonth(1)">下個月 ❯</button>
+      <button onclick="changeMonth(-1)">❮ 上月</button>
+      <h3 id="monthTitle" style="margin:0; font-size: 1.1em;"></h3>
+      <button onclick="changeMonth(1)">下月 ❯</button>
     </div>
 
     <div class="calendar-grid" id="calendarGrid"></div>
@@ -128,7 +161,7 @@
 <!-- 彈窗 -->
 <div class="modal" id="scheduleModal">
   <div class="modal-content">
-    <h3 id="modalTitle">選擇行程</h3>
+    <h3 id="modalTitle" style="font-size:1.1em;">選擇行程</h3>
     <div id="modalOptions"></div>
     <button class="secondary" style="width:100%; margin-top:10px;" onclick="closeModal()">取消 / 關閉</button>
   </div>
@@ -182,7 +215,6 @@
           if (!state.schedules) state.schedules = {};
         }
         
-        // 嘗試自動還原登入狀態
         checkAutoLogin();
         renderCalendar();
         if (currentUser && currentUser.role === 'admin') renderEmpManagementList();
@@ -195,7 +227,6 @@
     }
   }
 
-  // 檢查並恢復登入狀態
   function checkAutoLogin() {
     const savedUserJSON = localStorage.getItem('schedule_current_user');
     if (savedUserJSON && !currentUser) {
@@ -205,7 +236,6 @@
           currentUser = { username: 'Admin', role: 'admin', name: '主管' };
           showLoggedInUI();
         } else {
-          // 校對是否還存在於員工清單中
           const emp = state.employees.find(e => e.username.toLowerCase() === savedUser.username.toLowerCase());
           if (emp) {
             currentUser = { ...emp, role: 'employee' };
@@ -226,7 +256,7 @@
         } else {
           hasUnsavedChanges = false;
           document.getElementById('saveBar').style.display = 'none';
-          alert("✅ 已成功送出並儲存至雲端資料庫！");
+          alert("✅ 已送出並儲存！");
         }
       });
     } else {
@@ -249,8 +279,8 @@
 
   function toggleAuthMode() {
     isRegisterMode = !isRegisterMode;
-    document.getElementById('authTitle').innerText = isRegisterMode ? "📝 員工帳號註冊" : "🔑 使用者登入";
-    document.getElementById('toggleAuthBtn').innerText = isRegisterMode ? "已有帳號？點此登入" : "沒有帳號？點此註冊";
+    document.getElementById('authTitle').innerText = isRegisterMode ? "📝 帳號註冊" : "🔑 使用者登入";
+    document.getElementById('toggleAuthBtn').innerText = isRegisterMode ? "登入" : "註冊";
     document.getElementById('loginForm').style.display = isRegisterMode ? "none" : "block";
     document.getElementById('registerForm').style.display = isRegisterMode ? "block" : "none";
   }
@@ -266,7 +296,7 @@
     const lowerInput = rawInput.toLowerCase();
 
     if (lowerInput === 'admin' || state.employees.some(e => e.username.toLowerCase() === lowerInput)) {
-      return alert("該暱稱已被使用，請換一個！");
+      return alert("該暱稱已被使用！");
     }
 
     const newEmp = { id: Date.now().toString(), username: formattedName, pass, name: formattedName, color };
@@ -274,14 +304,14 @@
     
     commitChanges();
 
-    alert(`🎉 註冊成功！暱稱已調整為：[${formattedName}]，自動為您登入。`);
+    alert(`🎉 註冊成功！暱稱：[${formattedName}]`);
     currentUser = { ...newEmp, role: 'employee' };
-    localStorage.setItem('schedule_current_user', JSON.stringify(currentUser)); // 記憶登入狀態
+    localStorage.setItem('schedule_current_user', JSON.stringify(currentUser));
     showLoggedInUI();
   }
 
   function login() {
-    if (hasUnsavedChanges && !confirm("您有未儲存的排休變更，切換帳號會遺失未儲存內容，確定要繼續嗎？")) return;
+    if (hasUnsavedChanges && !confirm("有未儲存變更，確定繼續嗎？")) return;
 
     const rawUser = document.getElementById('loginUser').value.trim();
     const pass = document.getElementById('loginPass').value.trim();
@@ -298,7 +328,7 @@
       }
     }
 
-    localStorage.setItem('schedule_current_user', JSON.stringify(currentUser)); // 記憶登入狀態
+    localStorage.setItem('schedule_current_user', JSON.stringify(currentUser));
     hasUnsavedChanges = false;
     document.getElementById('saveBar').style.display = 'none';
     showLoggedInUI();
@@ -321,10 +351,10 @@
   }
 
   function logout() {
-    if (hasUnsavedChanges && !confirm("您有未儲存的變更，登出後未儲存的內容將會遺失，確定要登出嗎？")) return;
+    if (hasUnsavedChanges && !confirm("有未儲存變更，確定登出嗎？")) return;
 
     currentUser = null;
-    localStorage.removeItem('schedule_current_user'); // 清除登入記憶
+    localStorage.removeItem('schedule_current_user');
     hasUnsavedChanges = false;
     document.getElementById('saveBar').style.display = 'none';
     document.getElementById('loginCard').style.display = 'block';
@@ -347,11 +377,11 @@
     if (!oldP || !newP) return alert("請輸入舊密碼與新密碼！");
 
     if (currentUser.role === 'admin') {
-      if (state.admin.pass !== oldP) return alert("❌ 舊密碼輸入錯誤！");
+      if (state.admin.pass !== oldP) return alert("❌ 舊密碼錯誤！");
       state.admin.pass = newP;
     } else {
       const emp = state.employees.find(e => e.username.toLowerCase() === currentUser.username.toLowerCase());
-      if (!emp || emp.pass !== oldP) return alert("❌ 舊密碼輸入錯誤！");
+      if (!emp || emp.pass !== oldP) return alert("❌ 舊密碼錯誤！");
       emp.pass = newP;
       currentUser.pass = newP;
     }
@@ -364,40 +394,40 @@
   }
 
   function resetEmpPass(empUsername) {
-    if (!confirm(`確定要將 [${empUsername}] 的密碼重置為 1234 嗎？`)) return;
+    if (!confirm(`確定要將 [${empUsername}] 密碼重置為 1234 嗎？`)) return;
     const emp = state.employees.find(e => e.username.toLowerCase() === empUsername.toLowerCase());
     if (emp) {
       emp.pass = '1234';
       commitChanges();
-      alert(`✅ [${empUsername}] 的密碼已重置為：1234`);
+      alert(`✅ 已重置密碼為 1234`);
     }
   }
 
   function deleteEmp(empUsername) {
-    if (!confirm(`⚠️ 確定要刪除員工 [${empUsername}] 嗎？此動作無法復原！`)) return;
+    if (!confirm(`確定要刪除員工 [${empUsername}] 嗎？`)) return;
     state.employees = state.employees.filter(e => e.username.toLowerCase() !== empUsername.toLowerCase());
     commitChanges();
     renderEmpManagementList();
     renderCalendar();
-    alert(`已刪除員工 [${empUsername}]`);
+    alert(`已刪除 [${empUsername}]`);
   }
 
   function renderEmpManagementList() {
     const list = document.getElementById('empManagementList');
     if (state.employees.length === 0) {
-      list.innerHTML = `<p style="color:#888; font-size:0.9em;">目前尚無員工註冊</p>`;
+      list.innerHTML = `<p style="color:#888; font-size:0.8em;">尚無員工註冊</p>`;
       return;
     }
 
     list.innerHTML = state.employees.map(e => `
       <div class="emp-row">
-        <div>
+        <div style="font-size:0.85em;">
           <span class="dot" style="background:${e.color}"></span>
           <strong>${capitalizeName(e.name)}</strong>
         </div>
         <div class="flex">
-          <button class="secondary" style="font-size:0.8em; padding:4px 8px;" onclick="resetEmpPass('${e.username}')">🔄 重置密碼(1234)</button>
-          <button class="danger" style="font-size:0.8em; padding:4px 8px;" onclick="deleteEmp('${e.username}')">🗑️ 刪除</button>
+          <button class="secondary" style="font-size:0.7em; padding:3px 6px;" onclick="resetEmpPass('${e.username}')">重置</button>
+          <button class="danger" style="font-size:0.7em; padding:3px 6px;" onclick="deleteEmp('${e.username}')">刪除</button>
         </div>
       </div>
     `).join('');
@@ -438,7 +468,7 @@
   }
 
   function openModal(dateStr) {
-    if (!currentUser) return alert("🔒 請先登入帳號才能進行排休操作！");
+    if (!currentUser) return alert("🔒 請先登入！");
 
     selectedDateStr = dateStr;
     const modal = document.getElementById('scheduleModal');
@@ -448,7 +478,7 @@
     const now = new Date();
     const deadline = new Date(state.deadline);
     if (currentUser.role !== 'admin' && now > deadline) {
-      return alert("⚠️ 已超過主管設定的修改截止日期，無法新增或修改排休！");
+      return alert("⚠️ 已超過截止日期！");
     }
 
     optionsDiv.innerHTML = '';
@@ -467,8 +497,8 @@
     });
 
     optionsDiv.innerHTML += `
-      <button class="option-btn danger" style="margin-top: 15px;" onclick="clearSchedule()">
-        🗑️ 清除該日自己的排休
+      <button class="option-btn danger" style="margin-top: 10px;" onclick="clearSchedule()">
+        🗑️ 清除該日行程
       </button>
     `;
 
@@ -516,11 +546,11 @@
   }
 
   function updateDeadlineUI() {
-    document.getElementById('currentDeadlineText').innerText = `目前設定截止時間：${state.deadline.replace('T', ' ')}`;
+    document.getElementById('currentDeadlineText').innerText = `截止時間：${state.deadline.replace('T', ' ')}`;
   }
 
   function changeMonth(delta) {
-    if (hasUnsavedChanges && !confirm("切換月份前請先儲存變更，否則修改會遺失。要直接切換嗎？")) return;
+    if (hasUnsavedChanges && !confirm("有未儲存變更，確定切換嗎？")) return;
     
     currentMonth += delta;
     if (currentMonth < 0) { currentMonth = 11; currentYear--; }
