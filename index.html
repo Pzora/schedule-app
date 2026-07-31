@@ -17,6 +17,7 @@
     button { background: var(--primary); color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; }
     button.secondary { background: #6b7280; }
     button.danger { background: #ef4444; }
+    button.success { background: #10b981; font-weight: bold; }
     input, select { padding: 8px; border: 1px solid #ccc; border-radius: 6px; }
     
     .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
@@ -33,6 +34,7 @@
     .dot { width: 12px; height: 12px; border-radius: 50%; background: white; display: inline-block; }
     
     .emp-row { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #eee; width: 100%; }
+    .save-bar { background: #fffbebfb; border: 1px solid #fcd34d; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
   </style>
 </head>
 <body>
@@ -105,6 +107,12 @@
     </div>
   </div>
 
+  <!-- 未儲存提示與儲存按鈕條 -->
+  <div class="save-bar" id="saveBar" style="display: none;">
+    <span style="color: #b45309; font-weight: bold;">⚠️ 您有尚未送出的排休變更！</span>
+    <button class="success" onclick="commitChanges()">💾 送出／儲存變更至雲端</button>
+  </div>
+
   <!-- 月曆區 -->
   <div class="card">
     <div class="calendar-header">
@@ -148,6 +156,7 @@
   let currentUser = null;
   let selectedDateStr = "";
   let isRegisterMode = false;
+  let hasUnsavedChanges = false; // 是否有未儲存變更
 
   let state = {
     deadline: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-20T23:59`,
@@ -156,7 +165,7 @@
     schedules: {}
   };
 
-  // 將名字轉換為第一個字母大寫 (如: tom -> Tom, TOM -> Tom)
+  // 將名字轉換為第一個字母大寫 (如: tom -> Tom)
   function capitalizeName(str) {
     if (!str) return "";
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
@@ -165,6 +174,9 @@
   function initData() {
     if (useFirebase) {
       db.ref('scheduleState').on('value', (snapshot) => {
+        // 如果本地有未儲存的變更，不被雲端覆蓋
+        if (hasUnsavedChanges) return;
+
         const val = snapshot.val();
         if (val) {
           state = val;
@@ -181,12 +193,29 @@
     }
   }
 
-  function saveState() {
+  // 手動點擊儲存按鈕時，才同步回 Firebase 雲端
+  function commitChanges() {
     if (useFirebase) {
-      db.ref('scheduleState').set(state);
+      db.ref('scheduleState').set(state, (error) => {
+        if (error) {
+          alert("❌ 儲存失敗：" + error.message);
+        } else {
+          hasUnsavedChanges = false;
+          document.getElementById('saveBar').style.display = 'none';
+          alert("✅ 已成功送出並儲存至雲端資料庫！");
+        }
+      });
     } else {
       localStorage.setItem('scheduleStateV3', JSON.stringify(state));
+      hasUnsavedChanges = false;
+      document.getElementById('saveBar').style.display = 'none';
+      alert("✅ 已儲存！");
     }
+  }
+
+  function markUnsaved() {
+    hasUnsavedChanges = true;
+    document.getElementById('saveBar').style.display = 'flex';
   }
 
   window.onload = () => {
@@ -202,7 +231,7 @@
     document.getElementById('registerForm').style.display = isRegisterMode ? "block" : "none";
   }
 
-  // 員工自主註冊
+  // 員工自主註冊（註冊會直接寫入資料庫）
   function register() {
     const rawInput = document.getElementById('regUser').value.trim();
     const pass = document.getElementById('regPass').value.trim();
@@ -210,8 +239,8 @@
 
     if (!rawInput || !pass) return alert("請填寫暱稱與密碼！");
 
-    const formattedName = capitalizeName(rawInput); // 第一字大寫的名子 (如: Tom)
-    const lowerInput = rawInput.toLowerCase();     // 用於不分大小寫比對
+    const formattedName = capitalizeName(rawInput);
+    const lowerInput = rawInput.toLowerCase();
 
     if (lowerInput === 'admin' || state.employees.some(e => e.username.toLowerCase() === lowerInput)) {
       return alert("該暱稱已被使用，請換一個！");
@@ -219,7 +248,9 @@
 
     const newEmp = { id: Date.now().toString(), username: formattedName, pass, name: formattedName, color };
     state.employees.push(newEmp);
-    saveState();
+    
+    // 註冊帳號直接送出儲存
+    commitChanges();
 
     alert(`🎉 註冊成功！暱稱已調整為：[${formattedName}]，自動為您登入。`);
     currentUser = { ...newEmp, role: 'employee' };
@@ -227,6 +258,8 @@
   }
 
   function login() {
+    if (hasUnsavedChanges && !confirm("您有未儲存的排休變更，切換帳號會遺失未儲存內容，確定要繼續嗎？")) return;
+
     const rawUser = document.getElementById('loginUser').value.trim();
     const pass = document.getElementById('loginPass').value.trim();
     const lowerUser = rawUser.toLowerCase();
@@ -234,7 +267,6 @@
     if (lowerUser === state.admin.username.toLowerCase() && pass === state.admin.pass) {
       currentUser = { username: 'Admin', role: 'admin', name: '主管' };
     } else {
-      // 支援不分大小寫登入比對
       const emp = state.employees.find(e => e.username.toLowerCase() === lowerUser && e.pass === pass);
       if (emp) {
         currentUser = { ...emp, role: 'employee' };
@@ -243,6 +275,8 @@
       }
     }
 
+    hasUnsavedChanges = false;
+    document.getElementById('saveBar').style.display = 'none';
     showLoggedInUI();
   }
 
@@ -263,7 +297,11 @@
   }
 
   function logout() {
+    if (hasUnsavedChanges && !confirm("您有未儲存的變更，登出後未儲存的內容將會遺失，確定要登出嗎？")) return;
+
     currentUser = null;
+    hasUnsavedChanges = false;
+    document.getElementById('saveBar').style.display = 'none';
     document.getElementById('loginCard').style.display = 'block';
     document.getElementById('userCard').style.display = 'none';
     document.getElementById('changePassPanel').style.display = 'none';
@@ -277,7 +315,6 @@
     panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
   }
 
-  // 修改密碼（須驗證舊密碼）
   function changePassword() {
     const oldP = document.getElementById('oldPass').value.trim();
     const newP = document.getElementById('newPass').value.trim();
@@ -294,29 +331,27 @@
       currentUser.pass = newP;
     }
 
-    saveState();
+    commitChanges();
     document.getElementById('oldPass').value = '';
     document.getElementById('newPass').value = '';
     toggleChangePassPanel();
     alert("✅ 密碼修改成功！");
   }
 
-  // 主管：一鍵重置員工密碼為 1234
   function resetEmpPass(empUsername) {
     if (!confirm(`確定要將 [${empUsername}] 的密碼重置為 1234 嗎？`)) return;
     const emp = state.employees.find(e => e.username.toLowerCase() === empUsername.toLowerCase());
     if (emp) {
       emp.pass = '1234';
-      saveState();
+      commitChanges();
       alert(`✅ [${empUsername}] 的密碼已重置為：1234`);
     }
   }
 
-  // 主管：一鍵刪除員工
   function deleteEmp(empUsername) {
     if (!confirm(`⚠️ 確定要刪除員工 [${empUsername}] 嗎？此動作無法復原！`)) return;
     state.employees = state.employees.filter(e => e.username.toLowerCase() !== empUsername.toLowerCase());
-    saveState();
+    commitChanges();
     renderEmpManagementList();
     renderCalendar();
     alert(`已刪除員工 [${empUsername}]`);
@@ -419,15 +454,15 @@
     document.getElementById('scheduleModal').style.display = 'none';
   }
 
+  // 只畫在畫面上，提示未儲存
   function addSchedule(empName, type, color) {
     if (!state.schedules) state.schedules = {};
     if (!state.schedules[selectedDateStr]) state.schedules[selectedDateStr] = [];
     
-    // 清除舊紀錄時不區分大小寫
     state.schedules[selectedDateStr] = state.schedules[selectedDateStr].filter(s => s.empName.toLowerCase() !== empName.toLowerCase());
     state.schedules[selectedDateStr].push({ empName: capitalizeName(empName), type, color });
     
-    saveState();
+    markUnsaved(); // 觸發「未儲存」提示按鈕
     renderCalendar();
     closeModal();
   }
@@ -441,7 +476,7 @@
       state.schedules[selectedDateStr] = state.schedules[selectedDateStr].filter(s => s.empName.toLowerCase() !== currentUser.name.toLowerCase());
     }
 
-    saveState();
+    markUnsaved(); // 觸發「未儲存」提示按鈕
     renderCalendar();
     closeModal();
   }
@@ -452,9 +487,8 @@
     if (!date) return alert("請選擇日期");
 
     state.deadline = `${date}T${time}`;
-    saveState();
+    commitChanges();
     updateDeadlineUI();
-    alert("截止時間已更新！");
   }
 
   function updateDeadlineUI() {
@@ -462,6 +496,8 @@
   }
 
   function changeMonth(delta) {
+    if (hasUnsavedChanges && !confirm("切換月份前請先儲存變更，否則修改會遺失。要直接切換嗎？")) return;
+    
     currentMonth += delta;
     if (currentMonth < 0) { currentMonth = 11; currentYear--; }
     if (currentMonth > 11) { currentMonth = 0; currentYear++; }
