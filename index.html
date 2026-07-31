@@ -7,12 +7,12 @@
   <!-- 引入 Firebase 雲端資料庫 -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-<style>
+  <style>
     :root { --primary: #4f46e5; --bg: #f3f4f6; }
     * { box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 10px 6px; background: var(--bg); color: #333; }
-    .container { max-width: 1000px; margin: 0 auto; } /* 電腦版最大寬度限制 */
-    .card { background: white; padding: 12px 14px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 10px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 12px 8px; background: var(--bg); color: #333; }
+    .container { max-width: 960px; margin: 0 auto; }
+    .card { background: white; padding: 12px 14px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 10px; }
     h2, h3, h4 { margin-top: 0; }
     .flex { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
     button { background: var(--primary); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85em; }
@@ -22,20 +22,16 @@
     input, select { padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.85em; }
     
     .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    
-    .calendar-grid { 
-      display: grid; 
-      grid-template-columns: repeat(7, 1fr); 
-      gap: 4px; 
-      width: 100%;
-    }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; width: 100%; }
     .weekday { font-weight: bold; text-align: center; padding: 6px 0; background: #e5e7eb; border-radius: 4px; font-size: 0.85em; }
     
-    /* 1. 電腦 / 平板版 (螢幕寬度 > 768px) */
+    /* -------------------------------------------------------------
+       1. 電腦版樣式 (螢幕 > 768px)
+       ------------------------------------------------------------- */
     .day-cell { 
       background: white; 
       border: 1px solid #e5e7eb; 
-      min-height: 85px; 
+      min-height: 90px; 
       padding: 4px; 
       border-radius: 6px; 
       cursor: pointer; 
@@ -45,70 +41,90 @@
     .day-cell.other-month { opacity: 0.25; background: #f9fafb; }
     .day-num { font-weight: bold; font-size: 0.85em; margin-bottom: 4px; line-height: 1; color: #444; }
     
-    /* 電腦版：單行橫向精緻標籤 */
+    /* 電腦版標籤：單行滿色好看樣式 */
     .tag-container {
       border-radius: 4px;
       margin-bottom: 3px;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      padding: 2px 6px;
+      color: white;
+      font-size: 0.75em;
+      font-weight: bold;
       display: flex;
-      flex-direction: row; 
       justify-content: space-between;
       align-items: center;
-      padding: 2px 5px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
-    .tag-name {
-      font-size: 0.75em;
-      font-weight: 600;
-      color: white;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .tag-type {
-      font-size: 0.7em;
-      font-weight: bold;
-      padding-left: 4px;
-      white-space: nowrap;
-    }
+    .tag-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tag-type { font-size: 0.9em; opacity: 0.9; margin-left: 4px; }
 
-    /* 2. 手機版專屬樣式 (螢幕寬度 <= 767px) */
+    /* -------------------------------------------------------------
+       2. 手機版樣式 (螢幕 <= 767px)
+       ------------------------------------------------------------- */
     @media (max-width: 767px) {
       body { padding: 8px 4px; }
       .card { padding: 8px 6px; }
-
-      /* 手機版：拉高格子填滿螢幕 */
-      .day-cell { 
-        min-height: 92px; 
-        padding: 3px; 
-      }
+      .day-cell { min-height: 95px; padding: 3px; }
       .day-num { font-size: 0.75em; margin-bottom: 2px; }
 
-      /* 手機版：切換為雙色上下兩行 */
+      /* 手機版標籤：滿寬上下兩行 */
       .tag-container {
-        flex-direction: column; 
+        flex-direction: column;
         padding: 0;
+        border-radius: 4px;
         overflow: hidden;
       }
       .tag-name {
         font-size: 0.65em;
-        padding: 2px 2px 1px 2px;
+        padding: 2px;
         text-align: center;
         line-height: 1.1;
+        width: 100%;
       }
       .tag-type {
         font-size: 0.6em;
         padding: 1px 2px 2px 2px;
         text-align: center;
         line-height: 1.1;
+        width: 100%;
+        margin-left: 0;
         border-top: 1px solid rgba(255,255,255,0.3);
       }
     }
 
+    /* 超過人數的「+更多」提示 */
+    .more-tag {
+      font-size: 0.65em;
+      color: #6b7280;
+      text-align: center;
+      font-weight: bold;
+      margin-top: 2px;
+    }
+
     .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 100; }
-    .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 360px; }
-    .option-btn { width: 100%; text-align: left; padding: 10px; margin-bottom: 8px; border-radius: 8px; border: none; color: white; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; }
-    .dot { width: 10px; height: 10px; border-radius: 50%; background: white; display: inline-block; }
+    .modal-content { background: white; padding: 18px; border-radius: 12px; width: 90%; max-width: 360px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+    .option-btn { width: 100%; text-align: left; padding: 8px 12px; margin-bottom: 6px; border-radius: 8px; border: none; color: white; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9em; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: white; display: inline-block; }
     
+    /* 彈窗內的休假名單清單區 */
+    .schedule-list-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    .schedule-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      border-bottom: 1px dashed #cbd5e1;
+      font-size: 0.9em;
+    }
+    .schedule-item:last-child { border-bottom: none; }
+
     .emp-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #eee; width: 100%; }
     .save-bar { background: #fffbebfb; border: 1px solid #fcd34d; padding: 8px 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
   </style>
@@ -204,9 +220,17 @@
 <!-- 彈窗 -->
 <div class="modal" id="scheduleModal">
   <div class="modal-content">
-    <h3 id="modalTitle" style="font-size:1em;">選擇行程</h3>
+    <h3 id="modalTitle" style="font-size:1em; margin-bottom:10px;">📅 2026-07-23</h3>
+    
+    <!-- 當日排休完整名單區 -->
+    <div style="font-size: 0.8em; font-weight: bold; color: #475569; margin-bottom: 4px;">👥 當天排休人員：</div>
+    <div class="schedule-list-box" id="modalScheduleList"></div>
+
+    <!-- 設定個人排休按鈕區 -->
+    <div style="font-size: 0.8em; font-weight: bold; color: #475569; margin-bottom: 4px;" id="actionTitle">✏️ 設定排休：</div>
     <div id="modalOptions"></div>
-    <button class="secondary" style="width:100%; margin-top:10px;" onclick="closeModal()">取消 / 關閉</button>
+    
+    <button class="secondary" style="width:100%; margin-top:8px; padding:8px;" onclick="closeModal()">關閉</button>
   </div>
 </div>
 
@@ -246,7 +270,6 @@
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
   }
 
-  // 將 HEX 顏色轉換為較淺帶透明度的 RGBA 顏色
   function getLighterColor(hex, alpha = 0.25) {
     let c = hex.replace('#', '');
     if (c.length === 3) c = c.split('').map(x => x + x).join('');
@@ -255,18 +278,6 @@
     const g = (num >> 8) & 255;
     const b = num & 255;
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  }
-
-  // 判斷顏色深淺，決定文字要是黑色或白色
-  function getTextColorForBg(hex) {
-    let c = hex.replace('#', '');
-    if (c.length === 3) c = c.split('').map(x => x + x).join('');
-    const num = parseInt(c, 16);
-    const r = (num >> 16) & 255;
-    const g = (num >> 8) & 255;
-    const b = num & 255;
-    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-    return brightness > 160 ? '#1f2937' : '#ffffff';
   }
 
   function initData() {
@@ -516,26 +527,36 @@
       grid.innerHTML += `<div class="day-cell other-month"></div>`;
     }
 
+    const isMobile = window.innerWidth <= 767;
+
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const daySchedules = (state.schedules && state.schedules[dateStr]) || [];
 
-      let tagsHTML = daySchedules.map(s => {
+      let tagsHTML = "";
+      
+      daySchedules.forEach((s) => {
         const mainColor = s.color || '#3b82f6';
-        const lighterBg = getLighterColor(mainColor, 0.2); // 下層淺色底
-        const typeTextColor = mainColor; // 下層文字使用代表色本身，讀取超清晰！
+        const lighterBg = getLighterColor(mainColor, 0.2);
 
-        return `
-          <div class="tag-container" style="border: 1px solid ${mainColor};">
-            <div class="tag-name" style="background-color: ${mainColor};">
-              ${capitalizeName(s.empName)}
+        if (isMobile) {
+          // 手機版：上下兩行
+          tagsHTML += `
+            <div class="tag-container" style="background-color: ${mainColor}; border: 1px solid ${mainColor};">
+              <div class="tag-name">${capitalizeName(s.empName)}</div>
+              <div class="tag-type" style="background-color: ${lighterBg}; color: white;">${s.type}</div>
             </div>
-            <div class="tag-type" style="background-color: ${lighterBg}; color: ${typeTextColor};">
-              ${s.type}
+          `;
+        } else {
+          // 電腦版：單行滿色好看樣式
+          tagsHTML += `
+            <div class="tag-container" style="background-color: ${mainColor};">
+              <span class="tag-name">${capitalizeName(s.empName)}</span>
+              <span class="tag-type">${s.type}</span>
             </div>
-          </div>
-        `;
-      }).join('');
+          `;
+        }
+      });
 
       grid.innerHTML += `
         <div class="day-cell" onclick="openModal('${dateStr}')">
@@ -552,34 +573,56 @@
     selectedDateStr = dateStr;
     const modal = document.getElementById('scheduleModal');
     const optionsDiv = document.getElementById('modalOptions');
-    document.getElementById('modalTitle').innerText = `設定 ${dateStr} 行程`;
+    const listDiv = document.getElementById('modalScheduleList');
+    document.getElementById('modalTitle').innerText = `📅 ${dateStr}`;
 
+    // 1. 渲染當日已排休人員清單
+    const daySchedules = (state.schedules && state.schedules[dateStr]) || [];
+    if (daySchedules.length === 0) {
+      listDiv.innerHTML = `<div style="color:#94a3b8; font-size:0.85em; text-align:center; padding:6px;">尚無人排休</div>`;
+    } else {
+      listDiv.innerHTML = daySchedules.map(s => `
+        <div class="schedule-item">
+          <div>
+            <span class="dot" style="background:${s.color};"></span>
+            <strong>${capitalizeName(s.empName)}</strong>
+          </div>
+          <span style="font-size:0.8em; font-weight:bold; color:${s.color}; background:${getLighterColor(s.color, 0.15)}; padding:2px 6px; border-radius:4px;">
+            ${s.type}
+          </span>
+        </div>
+      `).join('');
+    }
+
+    // 2. 判斷截止時間
     const now = new Date();
     const deadline = new Date(state.deadline);
-    if (currentUser.role !== 'admin' && now > deadline) {
-      return alert("⚠️ 已超過截止日期！");
-    }
+    const isOverDeadline = (currentUser.role !== 'admin' && now > deadline);
 
     optionsDiv.innerHTML = '';
 
-    let targetEmployees = (currentUser.role === 'admin') ? state.employees : [currentUser];
+    if (isOverDeadline) {
+      optionsDiv.innerHTML = `<p style="color:#ef4444; font-size:0.85em; margin:4px 0;">⚠️ 已超過主管設定的截止時間，無法修改排休。</p>`;
+    } else {
+      let targetEmployees = (currentUser.role === 'admin') ? state.employees : [currentUser];
 
-    targetEmployees.forEach(emp => {
-      const formattedName = capitalizeName(emp.name);
-      ['休', '指休'].forEach(type => {
-        optionsDiv.innerHTML += `
-          <button class="option-btn" style="background-color: ${emp.color}" onclick="addSchedule('${formattedName}', '${type}', '${emp.color}')">
-            <span class="dot"></span> ${formattedName}${type}
-          </button>
-        `;
+      targetEmployees.forEach(emp => {
+        const formattedName = capitalizeName(emp.name);
+        ['休', '指休'].forEach(type => {
+          optionsDiv.innerHTML += `
+            <button class="option-btn" style="background-color: ${emp.color}" onclick="addSchedule('${formattedName}', '${type}', '${emp.color}')">
+              <span class="dot"></span> ${formattedName} - ${type}
+            </button>
+          `;
+        });
       });
-    });
 
-    optionsDiv.innerHTML += `
-      <button class="option-btn danger" style="margin-top: 10px;" onclick="clearSchedule()">
-        🗑️ 清除該日行程
-      </button>
-    `;
+      optionsDiv.innerHTML += `
+        <button class="option-btn danger" style="margin-top: 6px;" onclick="clearSchedule()">
+          🗑️ 清除該日我的行程
+        </button>
+      `;
+    }
 
     modal.style.display = 'flex';
   }
@@ -597,11 +640,11 @@
     
     markUnsaved();
     renderCalendar();
-    closeModal();
+    openModal(selectedDateStr); // 重新更新彈窗裡的名單
   }
 
   function clearSchedule() {
-    if (!state.schedules || !state.schedules[selectedDateStr]) return closeModal();
+    if (!state.schedules || !state.schedules[selectedDateStr]) return;
 
     if (currentUser.role === 'admin') {
       delete state.schedules[selectedDateStr];
@@ -611,7 +654,7 @@
 
     markUnsaved();
     renderCalendar();
-    closeModal();
+    openModal(selectedDateStr); // 重新更新彈窗裡的名單
   }
 
   function saveDeadline() {
