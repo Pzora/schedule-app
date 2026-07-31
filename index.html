@@ -2,7 +2,6 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <!-- 針對手機最佳化的 Viewport 設定 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>單位排休系統</title>
   <!-- 引入 Firebase 雲端資料庫 -->
@@ -10,55 +9,73 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <style>
     :root { --primary: #4f46e5; --bg: #f3f4f6; }
-    * { box-sizing: border-box; } /* 確保邊框不撐大寬度 */
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 10px 8px; background: var(--bg); color: #333; }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 10px 6px; background: var(--bg); color: #333; }
     .container { max-width: 100%; margin: 0 auto; }
-    .card { background: white; padding: 12px 10px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 10px; }
+    .card { background: white; padding: 10px 8px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 8px; }
     h2, h3, h4 { margin-top: 0; }
-    .flex { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    button { background: var(--primary); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.9em; }
+    .flex { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    button { background: var(--primary); color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 0.85em; }
     button.secondary { background: #6b7280; }
     button.danger { background: #ef4444; }
     button.success { background: #10b981; font-weight: bold; }
-    input, select { padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9em; }
+    input, select { padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.85em; }
     
-    .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
     
-    /* 修正手機滿版 grid */
     .calendar-grid { 
       display: grid; 
       grid-template-columns: repeat(7, 1fr); 
-      gap: 2px; 
+      gap: 3px; 
       width: 100%;
     }
     .weekday { font-weight: bold; text-align: center; padding: 4px 0; background: #e5e7eb; border-radius: 4px; font-size: 0.8em; }
     
+    /* 拉高格子以填滿手機下方空間 */
     .day-cell { 
       background: white; 
       border: 1px solid #e5e7eb; 
-      min-height: 62px; 
-      padding: 2px; 
-      border-radius: 4px; 
+      min-height: 92px; 
+      padding: 3px; 
+      border-radius: 6px; 
       cursor: pointer; 
       position: relative;
-      overflow: hidden;
+      overflow-y: auto;
     }
-    .day-cell.other-month { opacity: 0.2; background: #f9fafb; }
-    .day-num { font-weight: bold; font-size: 0.8em; margin-bottom: 2px; line-height: 1; }
+    .day-cell.other-month { opacity: 0.25; background: #f9fafb; }
+    .day-num { font-weight: bold; font-size: 0.8em; margin-bottom: 3px; line-height: 1; color: #444; }
     
-    /* 標籤微調（適合手機顯示） */
-    .tag { 
-      font-size: 0.65em; 
-      padding: 1px 3px; 
-      border-radius: 4px; 
-      color: white; 
-      margin-bottom: 2px; 
-      display: block; 
-      white-space: nowrap; 
-      overflow: hidden; 
-      text-overflow: ellipsis; 
+    /* 兩行雙色組合標籤 */
+    .tag-container {
+      border-radius: 5px;
+      overflow: hidden;
+      margin-bottom: 3px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 第一行：姓名（代表色） */
+    .tag-name {
+      font-size: 0.65em;
+      font-weight: 600;
+      color: white;
+      padding: 2px 2px 1px 2px;
       text-align: center;
-      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.1;
+    }
+
+    /* 第二行：假別（較淺/帶透光感的底色） */
+    .tag-type {
+      font-size: 0.6em;
+      font-weight: bold;
+      padding: 1px 2px 2px 2px;
+      text-align: center;
+      line-height: 1.1;
+      border-top: 1px solid rgba(255,255,255,0.3);
     }
 
     .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 100; }
@@ -67,7 +84,7 @@
     .dot { width: 10px; height: 10px; border-radius: 50%; background: white; display: inline-block; }
     
     .emp-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #eee; width: 100%; }
-    .save-bar { background: #fffbebfb; border: 1px solid #fcd34d; padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+    .save-bar { background: #fffbebfb; border: 1px solid #fcd34d; padding: 8px 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
   </style>
 </head>
 <body>
@@ -76,25 +93,25 @@
   <!-- 登入 / 註冊卡片 -->
   <div class="card" id="loginCard">
     <div class="flex" style="justify-content: space-between;">
-      <h3 id="authTitle" style="margin:0; font-size: 1.1em;">🔑 使用者登入</h3>
-      <button class="secondary" style="font-size:0.75em; padding:4px 8px;" onclick="toggleAuthMode()" id="toggleAuthBtn">沒有帳號？註冊</button>
+      <h3 id="authTitle" style="margin:0; font-size: 1em;">🔑 使用者登入</h3>
+      <button class="secondary" style="font-size:0.75em; padding:3px 6px;" onclick="toggleAuthMode()" id="toggleAuthBtn">註冊</button>
     </div>
 
     <!-- 登入表單 -->
-    <div id="loginForm" style="margin-top: 10px;">
+    <div id="loginForm" style="margin-top: 8px;">
       <div class="flex">
-        <input type="text" id="loginUser" placeholder="暱稱" style="width: 40%;">
+        <input type="text" id="loginUser" placeholder="暱稱" style="width: 38%;">
         <input type="password" id="loginPass" placeholder="密碼" style="width: 38%;">
         <button onclick="login()">登入</button>
       </div>
     </div>
 
     <!-- 註冊表單 (預設隱藏) -->
-    <div id="registerForm" style="display: none; margin-top: 10px;">
+    <div id="registerForm" style="display: none; margin-top: 8px;">
       <div class="flex">
-        <input type="text" id="regUser" placeholder="暱稱" style="width: 35%;">
-        <input type="password" id="regPass" placeholder="密碼" style="width: 35%;">
-        <input type="color" id="regColor" value="#3b82f6" style="width: 35px; height: 32px; padding: 0;">
+        <input type="text" id="regUser" placeholder="暱稱" style="width: 32%;">
+        <input type="password" id="regPass" placeholder="密碼" style="width: 32%;">
+        <input type="color" id="regColor" value="#3b82f6" style="width: 32px; height: 30px; padding: 0;">
         <button onclick="register()">註冊</button>
       </div>
     </div>
@@ -103,39 +120,39 @@
   <!-- 登入後狀態面板 -->
   <div class="card" id="userCard" style="display: none;">
     <div class="flex" style="justify-content: space-between;">
-      <div style="font-size:0.9em;">
+      <div style="font-size:0.85em;">
         <strong>登入：</strong> <span id="currentUserText">--</span> 
         (<span id="userRoleText">--</span>)
       </div>
       <div class="flex">
-        <button class="secondary" style="font-size:0.8em; padding:4px 8px;" onclick="toggleChangePassPanel()">改密碼</button>
-        <button class="secondary" style="font-size:0.8em; padding:4px 8px;" onclick="logout()">登出</button>
+        <button class="secondary" style="font-size:0.75em; padding:3px 6px;" onclick="toggleChangePassPanel()">改密碼</button>
+        <button class="secondary" style="font-size:0.75em; padding:3px 6px;" onclick="logout()">登出</button>
       </div>
     </div>
 
     <!-- 修改密碼區 -->
-    <div id="changePassPanel" style="display: none; margin-top: 10px; border-top: 1px dotted #ccc; padding-top: 10px; background: #f9fafb; padding: 8px; border-radius: 8px;">
-      <h4 style="margin-bottom: 6px; font-size: 0.9em;">✏️ 修改密碼</h4>
+    <div id="changePassPanel" style="display: none; margin-top: 8px; border-top: 1px dotted #ccc; padding-top: 8px; background: #f9fafb; padding: 6px; border-radius: 6px;">
+      <h4 style="margin-bottom: 4px; font-size: 0.85em;">✏️ 修改密碼</h4>
       <div class="flex">
-        <input type="password" id="oldPass" placeholder="舊密碼" style="width: 38%;">
-        <input type="password" id="newPass" placeholder="新密碼" style="width: 38%;">
+        <input type="password" id="oldPass" placeholder="舊密碼" style="width: 36%;">
+        <input type="password" id="newPass" placeholder="新密碼" style="width: 36%;">
         <button onclick="changePassword()">確認</button>
       </div>
     </div>
 
     <!-- 主管專屬管理區 -->
-    <div id="adminPanel" style="display: none; margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px;">
-      <h3 style="font-size:1em; margin-bottom: 8px;">⚙️ 主管管理面板</h3>
+    <div id="adminPanel" style="display: none; margin-top: 8px; border-top: 1px solid #eee; padding-top: 8px;">
+      <h3 style="font-size:0.95em; margin-bottom: 6px;">⚙️ 主管管理面板</h3>
       
-      <h4 style="font-size:0.85em; margin-bottom: 4px;">1. 設定截止時間</h4>
+      <h4 style="font-size:0.8em; margin-bottom: 4px;">1. 設定截止時間</h4>
       <div class="flex">
         <input type="date" id="deadlineDate">
         <input type="time" id="deadlineTime" value="23:59">
         <button onclick="saveDeadline()">儲存</button>
       </div>
-      <p id="currentDeadlineText" style="font-size:0.75em; color: #666; margin: 4px 0 10px 0;"></p>
+      <p id="currentDeadlineText" style="font-size:0.75em; color: #666; margin: 4px 0 8px 0;"></p>
 
-      <h4 style="font-size:0.85em; margin-bottom: 4px;">2. 員工管理</h4>
+      <h4 style="font-size:0.8em; margin-bottom: 4px;">2. 員工管理</h4>
       <div id="empManagementList"></div>
     </div>
   </div>
@@ -143,14 +160,14 @@
   <!-- 未儲存提示與儲存按鈕條 -->
   <div class="save-bar" id="saveBar" style="display: none;">
     <span style="color: #b45309; font-weight: bold; font-size: 0.8em;">⚠️ 有未儲存變更！</span>
-    <button class="success" style="font-size: 0.8em; padding: 6px 10px;" onclick="commitChanges()">💾 送出 / 儲存</button>
+    <button class="success" style="font-size: 0.8em; padding: 5px 8px;" onclick="commitChanges()">💾 送出 / 儲存</button>
   </div>
 
   <!-- 月曆區 -->
-  <div class="card" style="padding: 10px 6px;">
+  <div class="card" style="padding: 8px 4px;">
     <div class="calendar-header">
       <button onclick="changeMonth(-1)">❮ 上月</button>
-      <h3 id="monthTitle" style="margin:0; font-size: 1.1em;"></h3>
+      <h3 id="monthTitle" style="margin:0; font-size: 1em;"></h3>
       <button onclick="changeMonth(1)">下月 ❯</button>
     </div>
 
@@ -161,7 +178,7 @@
 <!-- 彈窗 -->
 <div class="modal" id="scheduleModal">
   <div class="modal-content">
-    <h3 id="modalTitle" style="font-size:1.1em;">選擇行程</h3>
+    <h3 id="modalTitle" style="font-size:1em;">選擇行程</h3>
     <div id="modalOptions"></div>
     <button class="secondary" style="width:100%; margin-top:10px;" onclick="closeModal()">取消 / 關閉</button>
   </div>
@@ -201,6 +218,29 @@
   function capitalizeName(str) {
     if (!str) return "";
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  }
+
+  // 將 HEX 顏色轉換為較淺帶透明度的 RGBA 顏色
+  function getLighterColor(hex, alpha = 0.25) {
+    let c = hex.replace('#', '');
+    if (c.length === 3) c = c.split('').map(x => x + x).join('');
+    const num = parseInt(c, 16);
+    const r = (num >> 16) & 255;
+    const g = (num >> 8) & 255;
+    const b = num & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  // 判斷顏色深淺，決定文字要是黑色或白色
+  function getTextColorForBg(hex) {
+    let c = hex.replace('#', '');
+    if (c.length === 3) c = c.split('').map(x => x + x).join('');
+    const num = parseInt(c, 16);
+    const r = (num >> 16) & 255;
+    const g = (num >> 8) & 255;
+    const b = num & 255;
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness > 160 ? '#1f2937' : '#ffffff';
   }
 
   function initData() {
@@ -454,9 +494,22 @@
       const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const daySchedules = (state.schedules && state.schedules[dateStr]) || [];
 
-      let tagsHTML = daySchedules.map(s => 
-        `<span class="tag" style="background-color: ${s.color};">${capitalizeName(s.empName)}${s.type}</span>`
-      ).join('');
+      let tagsHTML = daySchedules.map(s => {
+        const mainColor = s.color || '#3b82f6';
+        const lighterBg = getLighterColor(mainColor, 0.2); // 下層淺色底
+        const typeTextColor = mainColor; // 下層文字使用代表色本身，讀取超清晰！
+
+        return `
+          <div class="tag-container" style="border: 1px solid ${mainColor};">
+            <div class="tag-name" style="background-color: ${mainColor};">
+              ${capitalizeName(s.empName)}
+            </div>
+            <div class="tag-type" style="background-color: ${lighterBg}; color: ${typeTextColor};">
+              ${s.type}
+            </div>
+          </div>
+        `;
+      }).join('');
 
       grid.innerHTML += `
         <div class="day-cell" onclick="openModal('${dateStr}')">
