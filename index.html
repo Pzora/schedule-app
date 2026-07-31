@@ -11,7 +11,7 @@
     :root { --primary: #4f46e5; --bg: #f8fafc; }
     * { box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 12px 8px; background: var(--bg); color: #1e293b; }
-    .container { max-width: 1100px; margin: 0 auto; }
+    .container { max-width: 1100px; margin: 0 auto; position: relative; }
     .card { background: white; padding: 14px 16px; border-radius: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 12px; }
     .flex { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     button { background: var(--primary); color: white; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 0.85em; font-weight: 600; }
@@ -25,13 +25,11 @@
     .weekday { font-weight: bold; text-align: center; padding: 8px 0; background: #e2e8f0; border-radius: 6px; font-size: 0.85em; color: #475569; }
     .weekday.weekend { color: #ef4444; }
     
-    /* -------------------------------------------------------------
-       1. 電腦版樣式 (TimeTree 寬敞質感風格)
-       ------------------------------------------------------------- */
+    /* 電腦版樣式 (TimeTree 質感風格) */
     .day-cell { 
       background: white; 
       border: 1px solid #e2e8f0; 
-      min-height: 110px; /* 超大格子 */
+      min-height: 110px; 
       padding: 6px; 
       border-radius: 8px; 
       cursor: pointer; 
@@ -44,11 +42,11 @@
     
     .day-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
     .day-num { font-weight: bold; font-size: 0.9em; color: #334155; }
-    .day-num.is-holiday { color: #ef4444; } /* 假日/紅字顏色 */
+    .day-num.is-holiday { color: #ef4444; } 
     .lunar-text { font-size: 0.68em; color: #94a3b8; font-weight: normal; }
     .holiday-name { font-size: 0.65em; color: #ef4444; font-weight: bold; margin-left: 2px; }
 
-    /* 電腦版標籤：滿色膠囊樣式 */
+    /* 電腦版標籤 */
     .tag-item {
       border-radius: 4px;
       margin-bottom: 3px;
@@ -62,9 +60,7 @@
       box-shadow: 0 1px 2px rgba(0,0,0,0.06);
     }
 
-    /* -------------------------------------------------------------
-       2. 手機版樣式 (螢幕 <= 767px)
-       ------------------------------------------------------------- */
+    /* 手機版樣式 */
     @media (max-width: 767px) {
       body { padding: 6px 4px; }
       .card { padding: 10px; }
@@ -72,7 +68,6 @@
       .day-num { font-size: 0.8em; }
       .lunar-text { font-size: 0.6em; }
 
-      /* 手機版標籤：單行符號標記法 */
       .tag-item {
         font-size: 0.65em;
         padding: 1px 3px;
@@ -82,13 +77,11 @@
       }
     }
 
-    /* -------------------------------------------------------------
-       3. 懸浮加號按鈕 (Floating Action Button)
-       ------------------------------------------------------------- */
+    /* 修正後的懸浮加號按鈕 (+)：對齊月曆容器 */
     .fab-btn {
       position: fixed;
-      right: 20px;
-      bottom: 25px;
+      right: calc(50vw - 530px); /* 在大螢幕下靠齊月曆右緣 */
+      bottom: 30px;
       width: 56px;
       height: 56px;
       border-radius: 50%;
@@ -102,6 +95,9 @@
       cursor: pointer;
       z-index: 90;
       transition: transform 0.2s;
+    }
+    @media (max-width: 1100px) {
+      .fab-btn { right: 20px; } /* 小於寬螢幕時貼右 20px */
     }
     .fab-btn:active { transform: scale(0.92); }
 
@@ -271,10 +267,9 @@
   let isRegisterMode = false;
   let hasUnsavedChanges = false;
   
-  let selectedType = '休'; // 預設選取休
-  let selectedMultiDates = []; // 儲存批量選擇的日期
+  let selectedType = '休'; 
+  let selectedMultiDates = []; 
 
-  // 國定假日表（範例對照）
   const holidays = {
     "2026-01-01": "元旦", "2026-02-16": "除夕", "2026-02-17": "初一",
     "2026-02-18": "初二", "2026-02-19": "初三", "2026-02-28": "和平紀念",
@@ -282,7 +277,6 @@
     "2026-09-25": "中秋節", "2026-10-10": "國慶日"
   };
 
-  // 簡易農曆天數簡稱對照
   const lunarNames = ["初一","初二","初三","初四","初五","初六","初七","初八","初九","初十",
                       "十一","十二","十三","十四","十五","十六","十七","十八","十九","二十",
                       "廿一","廿二","廿三","廿四","廿五","廿六","廿七","廿八","廿九","三十"];
@@ -402,6 +396,7 @@
     showLoggedInUI();
   }
 
+  /* 修正處：明確控管主管面板的顯示與隱藏 */
   function showLoggedInUI() {
     document.getElementById('loginCard').style.display = 'none';
     document.getElementById('userCard').style.display = 'block';
@@ -412,6 +407,8 @@
     if (currentUser.role === 'admin') {
       document.getElementById('adminPanel').style.display = 'block';
       renderEmpManagementList();
+    } else {
+      document.getElementById('adminPanel').style.display = 'none'; // 強制隱藏主管面板
     }
     renderCalendar();
   }
@@ -460,13 +457,12 @@
       const holidayName = holidays[dateStr] || "";
       const isRedDay = isWeekend || holidayName !== "";
       
-      const lunarText = lunarNames[(day - 1) % 30]; // 簡易農曆示意
+      const lunarText = lunarNames[(day - 1) % 30];
 
       const daySchedules = (state.schedules && state.schedules[dateStr]) || [];
 
       let tagsHTML = "";
       daySchedules.forEach((s) => {
-        // 新邏輯：指定休假加全形＊，普通休假純名字
         const displayName = (s.type === '指休') ? `＊${capitalizeName(s.empName)}` : capitalizeName(s.empName);
         tagsHTML += `<div class="tag-item" style="background-color: ${s.color};">${displayName}</div>`;
       });
@@ -483,7 +479,6 @@
     }
   }
 
-  /* 點擊主頁日期：純查看當天排休名單 */
   function openViewModal(dateStr) {
     const listDiv = document.getElementById('viewScheduleList');
     document.getElementById('viewModalTitle').innerText = `📅 ${dateStr}`;
@@ -508,11 +503,9 @@
     document.getElementById('viewModal').style.display = 'flex';
   }
 
-  /* 點擊右下角 Floating (+) 按鈕：多選排休視窗 */
   function openMultiScheduleModal() {
     if (!currentUser) return alert("請先登入！");
     
-    // 主管選擇對象
     const targetBox = document.getElementById('targetEmpSelectBox');
     const targetSelect = document.getElementById('targetEmpSelect');
     if (currentUser.role === 'admin') {
@@ -580,7 +573,6 @@
     selectedMultiDates.forEach(dateStr => {
       if (!state.schedules[dateStr]) state.schedules[dateStr] = [];
 
-      // 先移除該員當天的舊行程
       state.schedules[dateStr] = state.schedules[dateStr].filter(s => s.empName.toLowerCase() !== empToApply.name.toLowerCase());
 
       if (selectedType !== '清除') {
