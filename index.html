@@ -156,7 +156,7 @@
   let currentUser = null;
   let selectedDateStr = "";
   let isRegisterMode = false;
-  let hasUnsavedChanges = false; // 是否有未儲存變更
+  let hasUnsavedChanges = false;
 
   let state = {
     deadline: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-20T23:59`,
@@ -165,7 +165,6 @@
     schedules: {}
   };
 
-  // 將名字轉換為第一個字母大寫 (如: tom -> Tom)
   function capitalizeName(str) {
     if (!str) return "";
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
@@ -174,7 +173,6 @@
   function initData() {
     if (useFirebase) {
       db.ref('scheduleState').on('value', (snapshot) => {
-        // 如果本地有未儲存的變更，不被雲端覆蓋
         if (hasUnsavedChanges) return;
 
         const val = snapshot.val();
@@ -183,17 +181,43 @@
           if (!state.employees) state.employees = [];
           if (!state.schedules) state.schedules = {};
         }
+        
+        // 嘗試自動還原登入狀態
+        checkAutoLogin();
         renderCalendar();
         if (currentUser && currentUser.role === 'admin') renderEmpManagementList();
       });
     } else {
       const local = localStorage.getItem('scheduleStateV3');
       if (local) state = JSON.parse(local);
+      checkAutoLogin();
       renderCalendar();
     }
   }
 
-  // 手動點擊儲存按鈕時，才同步回 Firebase 雲端
+  // 檢查並恢復登入狀態
+  function checkAutoLogin() {
+    const savedUserJSON = localStorage.getItem('schedule_current_user');
+    if (savedUserJSON && !currentUser) {
+      try {
+        const savedUser = JSON.parse(savedUserJSON);
+        if (savedUser.role === 'admin') {
+          currentUser = { username: 'Admin', role: 'admin', name: '主管' };
+          showLoggedInUI();
+        } else {
+          // 校對是否還存在於員工清單中
+          const emp = state.employees.find(e => e.username.toLowerCase() === savedUser.username.toLowerCase());
+          if (emp) {
+            currentUser = { ...emp, role: 'employee' };
+            showLoggedInUI();
+          } else {
+            localStorage.removeItem('schedule_current_user');
+          }
+        }
+      } catch(e) {}
+    }
+  }
+
   function commitChanges() {
     if (useFirebase) {
       db.ref('scheduleState').set(state, (error) => {
@@ -231,7 +255,6 @@
     document.getElementById('registerForm').style.display = isRegisterMode ? "block" : "none";
   }
 
-  // 員工自主註冊（註冊會直接寫入資料庫）
   function register() {
     const rawInput = document.getElementById('regUser').value.trim();
     const pass = document.getElementById('regPass').value.trim();
@@ -249,11 +272,11 @@
     const newEmp = { id: Date.now().toString(), username: formattedName, pass, name: formattedName, color };
     state.employees.push(newEmp);
     
-    // 註冊帳號直接送出儲存
     commitChanges();
 
     alert(`🎉 註冊成功！暱稱已調整為：[${formattedName}]，自動為您登入。`);
     currentUser = { ...newEmp, role: 'employee' };
+    localStorage.setItem('schedule_current_user', JSON.stringify(currentUser)); // 記憶登入狀態
     showLoggedInUI();
   }
 
@@ -275,6 +298,7 @@
       }
     }
 
+    localStorage.setItem('schedule_current_user', JSON.stringify(currentUser)); // 記憶登入狀態
     hasUnsavedChanges = false;
     document.getElementById('saveBar').style.display = 'none';
     showLoggedInUI();
@@ -300,6 +324,7 @@
     if (hasUnsavedChanges && !confirm("您有未儲存的變更，登出後未儲存的內容將會遺失，確定要登出嗎？")) return;
 
     currentUser = null;
+    localStorage.removeItem('schedule_current_user'); // 清除登入記憶
     hasUnsavedChanges = false;
     document.getElementById('saveBar').style.display = 'none';
     document.getElementById('loginCard').style.display = 'block';
@@ -454,7 +479,6 @@
     document.getElementById('scheduleModal').style.display = 'none';
   }
 
-  // 只畫在畫面上，提示未儲存
   function addSchedule(empName, type, color) {
     if (!state.schedules) state.schedules = {};
     if (!state.schedules[selectedDateStr]) state.schedules[selectedDateStr] = [];
@@ -462,7 +486,7 @@
     state.schedules[selectedDateStr] = state.schedules[selectedDateStr].filter(s => s.empName.toLowerCase() !== empName.toLowerCase());
     state.schedules[selectedDateStr].push({ empName: capitalizeName(empName), type, color });
     
-    markUnsaved(); // 觸發「未儲存」提示按鈕
+    markUnsaved();
     renderCalendar();
     closeModal();
   }
@@ -476,7 +500,7 @@
       state.schedules[selectedDateStr] = state.schedules[selectedDateStr].filter(s => s.empName.toLowerCase() !== currentUser.name.toLowerCase());
     }
 
-    markUnsaved(); // 觸發「未儲存」提示按鈕
+    markUnsaved();
     renderCalendar();
     closeModal();
   }
