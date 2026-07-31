@@ -253,11 +253,26 @@
   let userExistingSchedules = {}; 
   let selectedMultiDates = []; 
 
-  let holidays = {}; 
-
-  const lunarNames = ["初一","初二","初三","初四","初五","初六","初七","初八","初九","初十",
+  const lunarNames = ["初一","初2","初三","初四","初五","初六","初七","初八","初九","初十",
                       "十一","十二","十三","十四","十五","十六","十七","十八","十九","二十",
                       "廿一","廿二","廿三","廿四","廿五","廿六","廿七","廿八","廿九","三十"];
+
+  // 內建 2026 年行政院人事行政總處政府行政機關辦公日曆表國定假日/重要節日對照表
+  const officialHolidays2026 = {
+    "2026-01-01": "元旦",
+    "2026-02-16": "農曆春節",
+    "2026-02-17": "農曆春節",
+    "2026-02-18": "農曆春節",
+    "2026-02-19": "農曆春節",
+    "2026-02-20": "農曆春節",
+    "2026-02-28": "和平紀念日",
+    "2026-04-04": "兒童節",
+    "2026-04-05": "清明節",
+    "2026-05-01": "勞動節",
+    "2026-06-19": "端午節",
+    "2026-09-25": "中秋節",
+    "2026-10-10": "國慶日"
+  };
 
   let state = {
     deadline: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-20T23:59`,
@@ -270,32 +285,6 @@
   function getTodayDateStr() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  }
-
-  // 自動從行政院人事行政總處辦公日曆表 API 抓取
-  async function fetchHolidays() {
-    try {
-      const res = await fetch(`https://cdn.jsdelivr.net/gh/ruyisi/Taiwan-Holidays-Calendar/data/${currentYear}.json`);
-      if (res.ok) {
-        const data = await res.json();
-        holidays = {};
-        data.forEach(item => {
-          if (item.isHoliday) {
-            let y = item.date.substring(0,4);
-            let m = item.date.substring(4,6);
-            let d = item.date.substring(6,8);
-            holidays[`${y}-${m}-${d}`] = item.description || "放假";
-          }
-        });
-      }
-    } catch(e) {
-      holidays = {
-        [`${currentYear}-01-01`]: "元旦", [`${currentYear}-02-28`]: "和平紀念",
-        [`${currentYear}-04-04`]: "兒童節", [`${currentYear}-04-05`]: "清明節",
-        [`${currentYear}-05-01`]: "勞動節", [`${currentYear}-10-10`]: "國慶日"
-      };
-    }
-    renderCalendar();
   }
 
   function initData() {
@@ -344,11 +333,11 @@
     if (hasChanges) {
       commitChanges(() => {
         checkAutoLogin();
-        fetchHolidays();
+        renderCalendar();
       });
     } else {
       checkAutoLogin();
-      fetchHolidays();
+      renderCalendar();
     }
   }
 
@@ -599,7 +588,9 @@
       const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const dayObj = new Date(currentYear, currentMonth, day);
       const isWeekend = (dayObj.getDay() === 0 || dayObj.getDay() === 6);
-      const holidayName = holidays[dateStr] || "";
+      
+      // 從內建 2026 國定假日對照表讀取
+      const holidayName = (currentYear === 2026 && officialHolidays2026[dateStr]) ? officialHolidays2026[dateStr] : "";
       const isRedDay = isWeekend || holidayName !== "";
       
       const lunarText = lunarNames[(day - 1) % 30];
@@ -813,7 +804,7 @@
     currentMonth += delta;
     if (currentMonth < 0) { currentMonth = 11; currentYear--; }
     if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-    fetchHolidays(); 
+    renderCalendar(); 
   }
 </script>
 
