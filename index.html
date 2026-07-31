@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>單位排休系統</title>
+  <style>
+    :root { --primary: #4f46e5; --bg: #f3f4f6; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 15px; background: var(--bg); color: #333; }
+    .container { max-width: 800px; margin: 0 auto; }
+    .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 15px; }
+    h2, h3 { margin-top: 0; }
+    .flex { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    button { background: var(--primary); color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; }
+    button.secondary { background: #6b7280; }
+    input, select { padding: 8px; border: 1px solid #ccc; border-radius: 6px; }
+    
+    .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .weekday { font-weight: bold; text-align: center; padding: 5px; background: #e5e7eb; border-radius: 4px; }
+    .day-cell { background: white; border: 1px solid #e5e7eb; min-height: 90px; padding: 5px; border-radius: 6px; cursor: pointer; position: relative; }
+    .day-cell.other-month { opacity: 0.3; background: #f9fafb; }
+    .day-num { font-weight: bold; font-size: 0.9em; margin-bottom: 4px; }
+    .tag { font-size: 0.75em; padding: 2px 6px; border-radius: 10px; color: white; margin-bottom: 2px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 100; }
+    .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; }
+    .option-btn { width: 100%; text-align: left; padding: 10px; margin-bottom: 8px; border-radius: 8px; border: none; color: white; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; background: white; display: inline-block; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="card">
+    <div class="flex" style="justify-content: space-between;">
+      <div>
+        <strong>當前身分：</strong>
+        <span id="userRoleText">員工</span>
+      </div>
+      <div>
+        <button id="toggleAdminBtn" onclick="toggleRole()">切換為主管模式</button>
+      </div>
+    </div>
+
+    <div id="adminPanel" style="display: none; margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+      <h3>⚙️ 主管管理設定</h3>
+      
+      <h4>1. 設定本月截止日期</h4>
+      <div class="flex">
+        <input type="date" id="deadlineDate">
+        <input type="time" id="deadlineTime" value="23:59">
+        <button onclick="saveDeadline()">儲存截止時間</button>
+      </div>
+      <p id="currentDeadlineText" style="font-size:0.85em; color: #666;"></p>
+
+      <h4>2. 新增/管理員工與顏色</h4>
+      <div class="flex">
+        <input type="text" id="empName" placeholder="員工姓名 (例: A)">
+        <input type="color" id="empColor" value="#3b82f6">
+        <button onclick="addEmployee()">新增員工</button>
+      </div>
+      <div id="empList" style="margin-top: 10px;" class="flex"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="calendar-header">
+      <button onclick="changeMonth(-1)">❮ 上個月</button>
+      <h2 id="monthTitle" style="margin:0;"></h2>
+      <button onclick="changeMonth(1)">下個月 ❯</button>
+    </div>
+
+    <div class="calendar-grid" id="calendarGrid"></div>
+  </div>
+</div>
+
+<div class="modal" id="scheduleModal">
+  <div class="modal-content">
+    <h3 id="modalTitle">選擇行程</h3>
+    <div id="modalOptions"></div>
+    <button class="secondary" style="width:100%; margin-top:10px;" onclick="closeModal()">取消 / 關閉</button>
+  </div>
+</div>
+
+<script>
+  let today = new Date();
+  let currentYear = today.getFullYear();
+  let currentMonth = today.getMonth();
+  let isAdmin = false;
+  let selectedDateStr = "";
+
+  let state = JSON.parse(localStorage.getItem('scheduleState')) || {
+    deadline: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-20T23:59`,
+    employees: [
+      { id: '1', name: 'A', color: '#22c55e' },
+      { id: '2', name: 'B', color: '#3b82f6' },
+      { id: '3', name: 'C', color: '#f97316' }
+    ],
+    schedules: {}
+  };
+
+  function saveState() {
+    localStorage.setItem('scheduleState', JSON.stringify(state));
+  }
+
+  window.onload = () => {
+    renderCalendar();
+    renderEmpList();
+    updateDeadlineUI();
+  };
+
+  function toggleRole() {
+    isAdmin = !isAdmin;
+    document.getElementById('userRoleText').innerText = isAdmin ? "主管" : "員工";
+    document.getElementById('toggleAdminBtn').innerText = isAdmin ? "切換為員工模式" : "切換為主管模式";
+    document.getElementById('adminPanel').style.display = isAdmin ? "block" : "none";
+  }
+
+  function renderCalendar() {
+    document.getElementById('monthTitle').innerText = `${currentYear} / ${String(currentMonth + 1).padStart(2, '0')}`;
+    const grid = document.getElementById('calendarGrid');
+    grid.innerHTML = '';
+
+    const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+    weekdays.forEach(w => {
+      grid.innerHTML += `<div class="weekday">${w}</div>`;
+    });
+
+    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+    for (let i = 0; i < firstDay; i++) {
+      grid.innerHTML += `<div class="day-cell other-month"></div>`;
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const daySchedules = state.schedules[dateStr] || [];
+
+      let tagsHTML = daySchedules.map(s => 
+        `<span class="tag" style="background-color: ${s.color};">${s.empName}${s.type}</span>`
+      ).join('');
+
+      grid.innerHTML += `
+        <div class="day-cell" onclick="openModal('${dateStr}')">
+          <div class="day-num">${day}</div>
+          ${tagsHTML}
+        </div>
+      `;
+    }
+  }
+
+  function openModal(dateStr) {
+    selectedDateStr = dateStr;
+    const modal = document.getElementById('scheduleModal');
+    const optionsDiv = document.getElementById('modalOptions');
+    document.getElementById('modalTitle').innerText = `設定 ${dateStr} 行程`;
+
+    const now = new Date();
+    const deadline = new Date(state.deadline);
+    if (!isAdmin && now > deadline) {
+      alert("⚠️ 已超過主管設定的修改截止日期，無法新增或修改排休！");
+      return;
+    }
+
+    optionsDiv.innerHTML = '';
+
+    state.employees.forEach(emp => {
+      ['休', '指休'].forEach(type => {
+        optionsDiv.innerHTML += `
+          <button class="option-btn" style="background-color: ${emp.color}" onclick="addSchedule('${emp.name}', '${type}', '${emp.color}')">
+            <span class="dot"></span> ${emp.name}${type}
+          </button>
+        `;
+      });
+    });
+
+    optionsDiv.innerHTML += `
+      <button class="option-btn" style="background-color: #ef4444; margin-top: 15px;" onclick="clearSchedule()">
+        🗑️ 清除當日所有排休
+      </button>
+    `;
+
+    modal.style.display = 'flex';
+  }
+
+  function closeModal() {
+    document.getElementById('scheduleModal').style.display = 'none';
+  }
+
+  function addSchedule(empName, type, color) {
+    if (!state.schedules[selectedDateStr]) {
+      state.schedules[selectedDateStr] = [];
+    }
+    
+    const exists = state.schedules[selectedDateStr].some(s => s.empName === empName && s.type === type);
+    if (!exists) {
+      state.schedules[selectedDateStr].push({ empName, type, color });
+      saveState();
+    }
+
+    renderCalendar();
+    closeModal();
+  }
+
+  function clearSchedule() {
+    delete state.schedules[selectedDateStr];
+    saveState();
+    renderCalendar();
+    closeModal();
+  }
+
+  function addEmployee() {
+    const name = document.getElementById('empName').value.trim();
+    const color = document.getElementById('empColor').value;
+    if (!name) return alert("請輸入員工姓名");
+
+    state.employees.push({ id: Date.now().toString(), name, color });
+    saveState();
+    document.getElementById('empName').value = '';
+    renderEmpList();
+  }
+
+  function renderEmpList() {
+    const list = document.getElementById('empList');
+    list.innerHTML = state.employees.map(e => 
+      `<span class="tag" style="background:${e.color}; font-size: 0.9em; padding: 4px 8px;">${e.name}</span>`
+    ).join('');
+  }
+
+  function saveDeadline() {
+    const date = document.getElementById('deadlineDate').value;
+    const time = document.getElementById('deadlineTime').value;
+    if (!date) return alert("請選擇日期");
+
+    state.deadline = `${date}T${time}`;
+    saveState();
+    updateDeadlineUI();
+    alert("截止時間已更新！");
+  }
+
+  function updateDeadlineUI() {
+    document.getElementById('currentDeadlineText').innerText = `目前設定截止時間：${state.deadline.replace('T', ' ')}`;
+  }
+
+  function changeMonth(delta) {
+    currentMonth += delta;
+    if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+    if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+    renderCalendar();
+  }
+</script>
+
+</body>
+</html>
