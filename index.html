@@ -4,12 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>單位排休系統</title>
+  <!-- 引入 Firebase 雲端資料庫套件 -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <style>
     :root { --primary: #4f46e5; --bg: #f3f4f6; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 15px; background: var(--bg); color: #333; }
     .container { max-width: 800px; margin: 0 auto; }
     .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 15px; }
-    h2, h3 { margin-top: 0; }
+    h2, h3, h4 { margin-top: 0; }
     .flex { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
     button { background: var(--primary); color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; }
     button.secondary { background: #6b7280; }
@@ -37,11 +40,10 @@
   <div class="card" id="loginCard">
     <h3>🔑 使用者登入</h3>
     <div class="flex">
-      <input type="text" id="loginUser" placeholder="帳號 (例: admin 或 A)">
-      <input type="password" id="loginPass" placeholder="密碼">
+      <input type="text" id="loginUser" placeholder="員工暱稱">
+      <input type="password" id="loginPass" placeholder="密碼 (預設1234)">
       <button onclick="login()">登入</button>
     </div>
-    <p style="font-size: 0.8em; color: #666; margin-top: 8px;">預設主管帳號：<code>admin</code> / 密碼：<code>1234</code><br>預設員工帳號：<code>A</code> / 密碼：<code>1234</code></p>
   </div>
 
   <!-- 登入後狀態面板 -->
@@ -51,7 +53,19 @@
         <strong>當前登入：</strong> <span id="currentUserText">--</span> 
         (<span id="userRoleText">--</span>)
       </div>
-      <button class="secondary" onclick="logout()">登出</button>
+      <div class="flex">
+        <button class="secondary" onclick="toggleChangePassPanel()">🔒 修改密碼</button>
+        <button class="secondary" onclick="logout()">登出</button>
+      </div>
+    </div>
+
+    <!-- 修改密碼區 -->
+    <div id="changePassPanel" style="display: none; margin-top: 15px; border-top: 1px dotted #ccc; padding-top: 15px; background: #f9fafb; padding: 10px; border-radius: 8px;">
+      <h4 style="margin-bottom: 8px;">✏️ 修改我的密碼</h4>
+      <div class="flex">
+        <input type="password" id="newPass" placeholder="請輸入新密碼">
+        <button onclick="changePassword()">確認修改</button>
+      </div>
     </div>
 
     <!-- 主管專屬管理區 -->
@@ -66,14 +80,21 @@
       </div>
       <p id="currentDeadlineText" style="font-size:0.85em; color: #666;"></p>
 
-      <h4>2. 新增員工與密碼設定</h4>
+      <h4>2. 新增員工</h4>
       <div class="flex">
-        <input type="text" id="empName" placeholder="帳號/姓名 (例: B)" style="width: 100px;">
-        <input type="password" id="empPass" placeholder="設定密碼" style="width: 100px;">
+        <input type="text" id="empName" placeholder="員工暱稱" style="width: 120px;">
         <input type="color" id="empColor" value="#3b82f6">
         <button onclick="addEmployee()">新增員工</button>
       </div>
+      <p style="font-size:0.8em; color:#888;">預設密碼為 <code>1234</code></p>
       <div id="empList" style="margin-top: 10px;" class="flex"></div>
+
+      <h4 style="margin-top: 15px;">3. 重設員工密碼 (救援功能)</h4>
+      <div class="flex">
+        <select id="resetEmpSelect"></select>
+        <input type="password" id="resetEmpPass" placeholder="新密碼" style="width: 120px;">
+        <button class="secondary" onclick="resetEmployeePassword()">重設密碼</button>
+      </div>
     </div>
   </div>
 
@@ -99,34 +120,70 @@
 </div>
 
 <script>
+  // --- 雲端資料庫設定區 (選填，若沒設定會自動退回單機 LocalStorage 模式) ---
+  // 可申請免費 Firebase Realtime Database 填入下方以啟用跨裝置同步
+  const firebaseConfig = {
+    databaseURL: "" 
+  };
+  
+  let useFirebase = false;
+  let db = null;
+
+  if (firebaseConfig.databaseURL) {
+    try {
+      firebase.initializeApp(firebaseConfig);
+      db = firebase.database();
+      useFirebase = true;
+    } catch(e) { console.log("使用本機儲存模式"); }
+  }
+
   let today = new Date();
   let currentYear = today.getFullYear();
   let currentMonth = today.getMonth();
-  let currentUser = null; // 當前登入者資訊 { username, role, name, color }
+  let currentUser = null;
   let selectedDateStr = "";
 
-  // 預設資料
-  let state = JSON.parse(localStorage.getItem('scheduleStateWithAuth')) || {
+  // 初始化狀態（已清空預設 ABC）
+  let state = {
     deadline: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-20T23:59`,
     admin: { username: 'admin', pass: '1234' },
-    employees: [
-      { id: '1', username: 'A', pass: '1234', name: 'A', color: '#22c55e' },
-      { id: '2', username: 'B', pass: '1234', name: 'B', color: '#3b82f6' },
-      { id: '3', username: 'C', pass: '1234', name: 'C', color: '#f97316' }
-    ],
+    employees: [],
     schedules: {}
   };
 
+  // 載入資料
+  function initData() {
+    if (useFirebase) {
+      db.ref('scheduleState').on('value', (snapshot) => {
+        const val = snapshot.val();
+        if (val) {
+          state = val;
+          if (!state.employees) state.employees = [];
+          if (!state.schedules) state.schedules = {};
+        }
+        renderCalendar();
+        if (currentUser && currentUser.role === 'admin') renderEmpList();
+      });
+    } else {
+      const local = localStorage.getItem('scheduleStateV2');
+      if (local) state = JSON.parse(local);
+      renderCalendar();
+    }
+  }
+
   function saveState() {
-    localStorage.setItem('scheduleStateWithAuth', JSON.stringify(state));
+    if (useFirebase) {
+      db.ref('scheduleState').set(state);
+    } else {
+      localStorage.setItem('scheduleStateV2', JSON.stringify(state));
+    }
   }
 
   window.onload = () => {
-    renderCalendar();
+    initData();
     updateDeadlineUI();
   };
 
-  // 登入驗證
   function login() {
     const user = document.getElementById('loginUser').value.trim();
     const pass = document.getElementById('loginPass').value.trim();
@@ -142,7 +199,6 @@
       }
     }
 
-    // 更新 UI
     document.getElementById('loginCard').style.display = 'none';
     document.getElementById('userCard').style.display = 'block';
     document.getElementById('currentUserText').innerText = currentUser.name;
@@ -162,9 +218,50 @@
     currentUser = null;
     document.getElementById('loginCard').style.display = 'block';
     document.getElementById('userCard').style.display = 'none';
+    document.getElementById('changePassPanel').style.display = 'none';
     document.getElementById('loginUser').value = '';
     document.getElementById('loginPass').value = '';
     renderCalendar();
+  }
+
+  function toggleChangePassPanel() {
+    const panel = document.getElementById('changePassPanel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  }
+
+  function changePassword() {
+    const newPass = document.getElementById('newPass').value.trim();
+    if (!newPass) return alert("請輸入新密碼！");
+
+    if (currentUser.role === 'admin') {
+      state.admin.pass = newPass;
+    } else {
+      const emp = state.employees.find(e => e.username === currentUser.username);
+      if (emp) {
+        emp.pass = newPass;
+        currentUser.pass = newPass;
+      }
+    }
+
+    saveState();
+    document.getElementById('newPass').value = '';
+    toggleChangePassPanel();
+    alert("✅ 密碼修改成功！");
+  }
+
+  // 主管重設員工密碼
+  function resetEmployeePassword() {
+    const empUsername = document.getElementById('resetEmpSelect').value;
+    const newPass = document.getElementById('resetEmpPass').value.trim();
+    if (!newPass) return alert("請輸入新密碼！");
+
+    const emp = state.employees.find(e => e.username === empUsername);
+    if (emp) {
+      emp.pass = newPass;
+      saveState();
+      document.getElementById('resetEmpPass').value = '';
+      alert(`✅ 已成功將 ${emp.name} 的密碼重設為：${newPass}`);
+    }
   }
 
   function renderCalendar() {
@@ -186,7 +283,7 @@
 
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      const daySchedules = state.schedules[dateStr] || [];
+      const daySchedules = (state.schedules && state.schedules[dateStr]) || [];
 
       let tagsHTML = daySchedules.map(s => 
         `<span class="tag" style="background-color: ${s.color};">${s.empName}${s.type}</span>`
@@ -202,16 +299,13 @@
   }
 
   function openModal(dateStr) {
-    if (!currentUser) {
-      return alert("🔒 請先登入帳號才能進行排休操作！");
-    }
+    if (!currentUser) return alert("🔒 請先登入帳號才能進行排休操作！");
 
     selectedDateStr = dateStr;
     const modal = document.getElementById('scheduleModal');
     const optionsDiv = document.getElementById('modalOptions');
     document.getElementById('modalTitle').innerText = `設定 ${dateStr} 行程`;
 
-    // 檢查截止日期
     const now = new Date();
     const deadline = new Date(state.deadline);
     if (currentUser.role !== 'admin' && now > deadline) {
@@ -220,13 +314,7 @@
 
     optionsDiv.innerHTML = '';
 
-    // 權限分流：主管可選所有人，員工只能選自己
-    let targetEmployees = [];
-    if (currentUser.role === 'admin') {
-      targetEmployees = state.employees;
-    } else {
-      targetEmployees = [currentUser];
-    }
+    let targetEmployees = (currentUser.role === 'admin') ? state.employees : [currentUser];
 
     targetEmployees.forEach(emp => {
       ['休', '指休'].forEach(type => {
@@ -238,7 +326,6 @@
       });
     });
 
-    // 清除按鈕邏輯
     optionsDiv.innerHTML += `
       <button class="option-btn danger" style="margin-top: 15px;" onclick="clearSchedule()">
         🗑️ 清除該日自己的排休
@@ -253,26 +340,23 @@
   }
 
   function addSchedule(empName, type, color) {
-    if (!state.schedules[selectedDateStr]) {
-      state.schedules[selectedDateStr] = [];
-    }
+    if (!state.schedules) state.schedules = {};
+    if (!state.schedules[selectedDateStr]) state.schedules[selectedDateStr] = [];
     
-    // 移除該員工當天的舊設定 (避免同時有 休 與 指休)
     state.schedules[selectedDateStr] = state.schedules[selectedDateStr].filter(s => s.empName !== empName);
-
     state.schedules[selectedDateStr].push({ empName, type, color });
+    
     saveState();
     renderCalendar();
     closeModal();
   }
 
   function clearSchedule() {
-    if (!state.schedules[selectedDateStr]) return closeModal();
+    if (!state.schedules || !state.schedules[selectedDateStr]) return closeModal();
 
     if (currentUser.role === 'admin') {
-      delete state.schedules[selectedDateStr]; // 主管直接清空全天
+      delete state.schedules[selectedDateStr];
     } else {
-      // 員工只刪除自己的
       state.schedules[selectedDateStr] = state.schedules[selectedDateStr].filter(s => s.empName !== currentUser.name);
     }
 
@@ -283,23 +367,28 @@
 
   function addEmployee() {
     const name = document.getElementById('empName').value.trim();
-    const pass = document.getElementById('empPass').value.trim();
     const color = document.getElementById('empColor').value;
 
-    if (!name || !pass) return alert("請輸入員工帳號/姓名與密碼！");
+    if (!name) return alert("請輸入員工暱稱！");
+    if (state.employees.some(e => e.username === name)) return alert("該暱稱已存在！");
 
-    state.employees.push({ id: Date.now().toString(), username: name, pass, name, color });
+    state.employees.push({ id: Date.now().toString(), username: name, pass: '1234', name, color });
     saveState();
     document.getElementById('empName').value = '';
-    document.getElementById('empPass').value = '';
     renderEmpList();
-    alert(`員工 ${name} 新增成功！預設密碼為 ${pass}`);
+    alert(`員工 ${name} 新增成功！預設密碼為 1234`);
   }
 
   function renderEmpList() {
     const list = document.getElementById('empList');
+    const select = document.getElementById('resetEmpSelect');
+    
     list.innerHTML = state.employees.map(e => 
-      `<span class="tag" style="background:${e.color}; font-size: 0.9em; padding: 4px 8px;">${e.name} (密碼:${e.pass})</span>`
+      `<span class="tag" style="background:${e.color}; font-size: 0.9em; padding: 4px 8px;">${e.name}</span>`
+    ).join('');
+
+    select.innerHTML = state.employees.map(e => 
+      `<option value="${e.username}">${e.name}</option>`
     ).join('');
   }
 
