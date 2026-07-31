@@ -7,8 +7,6 @@
   <!-- 引入 Firebase 雲端資料庫 -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <!-- 引入精準農曆計算套件 -->
-  <script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.6.12/lunar.js"></script>
   <style>
     :root { --primary: #4f46e5; --bg: #f8fafc; }
     * { box-sizing: border-box; }
@@ -30,7 +28,7 @@
     .day-cell { 
       background: white; 
       border: 1px solid #e2e8f0; 
-      min-height: 110px; 
+      min-height: 100px; 
       padding: 6px; 
       border-radius: 8px; 
       cursor: pointer; 
@@ -44,7 +42,6 @@
     .day-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
     .day-num { font-weight: bold; font-size: 0.9em; color: #334155; }
     .day-num.is-holiday { color: #ef4444; } 
-    .lunar-text { font-size: 0.68em; color: #94a3b8; font-weight: normal; }
     .holiday-name { font-size: 0.65em; color: #ef4444; font-weight: bold; margin-left: 2px; }
 
     .tag-item {
@@ -63,9 +60,8 @@
     @media (max-width: 767px) {
       body { padding: 6px 4px; }
       .card { padding: 10px; }
-      .day-cell { min-height: 80px; padding: 4px 2px; }
+      .day-cell { min-height: 75px; padding: 4px 2px; }
       .day-num { font-size: 0.8em; }
-      .lunar-text { font-size: 0.6em; }
       .tag-item { font-size: 0.65em; padding: 1px 3px; margin-bottom: 2px; border-radius: 3px; text-align: center; }
     }
 
@@ -284,7 +280,7 @@
         checkAutoRemoveExpiredEmployees();
       });
     } else {
-      const local = localStorage.getItem('scheduleStateV6');
+      const local = localStorage.getItem('scheduleStateV7');
       if (local) {
         state = JSON.parse(local);
         state.employees.forEach(e => {
@@ -354,7 +350,7 @@
         if (!err && callback) callback();
       });
     } else {
-      localStorage.setItem('scheduleStateV6', JSON.stringify(state));
+      localStorage.setItem('scheduleStateV7', JSON.stringify(state));
       if (callback) callback();
     }
   }
@@ -550,40 +546,19 @@
     });
   }
 
-  // 台灣行政院行事曆國定假日對應表（固定國定假日 + 農曆大節）
+  // 台灣行政院行事曆國定假日對應表（純國曆固定假日 + 重要節日）
   function getTaiwanHoliday(year, month, day) {
     const md = `${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     
-    // 固定的國定假日
-    const fixedHolidays = {
+    const holidays = {
       "01-01": "開國紀念日",
       "02-28": "和平紀念日",
       "04-04": "兒童節",
+      "04-05": "清明節",
       "05-01": "勞動節",
       "10-10": "國慶日"
     };
-    if (fixedHolidays[md]) return fixedHolidays[md];
-
-    // 清明節（大約在 4/4 或 4/5，透過 solar 計算）
-    const solarObj = Solar.fromYmd(year, month, day);
-    const lunarObj = solarObj.getLunar();
-
-    // 農曆重要節日
-    const lunarMonth = lunarObj.getMonth();
-    const lunarDay = lunarObj.getDay();
-
-    if (lunarMonth === 1 && lunarDay === 1) return "農曆春節";
-    if (lunarMonth === 1 && lunarDay === 2) return "春節初二";
-    if (lunarMonth === 1 && lunarDay === 3) return "春節初三";
-    if (lunarMonth === 5 && lunarDay === 5) return "端午節";
-    if (lunarMonth === 8 && lunarDay === 15) return "中秋節";
-    if (lunarMonth === 12 && lunarDay === lunarObj.getMonthDays()) return "除夕";
-
-    // 節氣判斷清明節
-    const jq = lunarObj.getJieQi();
-    if (jq === "清明") return "清明節";
-
-    return "";
+    return holidays[md] || "";
   }
 
   function renderCalendar() {
@@ -607,13 +582,7 @@
       const dayOfWeek = dayObj.getDay();
       const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
       
-      const solarObj = Solar.fromYmd(currentYear, currentMonth + 1, day);
-      const lunarObj = solarObj.getLunar();
-      const lunarDayStr = lunarObj.getDayInChinese();
-      
-      // 取得台灣行政院標準國定假日/農曆大節
       const holidayName = getTaiwanHoliday(currentYear, currentMonth + 1, day);
-
       const isRedDay = isWeekend || holidayName !== "";
       const daySchedules = (state.schedules && state.schedules[dateStr]) || [];
 
@@ -627,7 +596,6 @@
         <div class="day-cell" onclick="openViewModal('${dateStr}')">
           <div class="day-header">
             <span class="day-num ${isRedDay ? 'is-holiday':''}">${day} ${holidayName ? `<span class="holiday-name">${holidayName}</span>`:''}</span>
-            <span class="lunar-text">${lunarDayStr}</span>
           </div>
           ${tagsHTML}
         </div>
@@ -782,7 +750,7 @@
   function saveMultiSchedule() {
     let empToApply = currentUser;
     if (currentUser.role === 'admin') {
-      const targetUsername = document.getElementById('targetEmpSelect'].value;
+      const targetUsername = document.getElementById('targetEmpSelect').value;
       empToApply = state.employees.find(e => e.username.toLowerCase() === targetUsername.toLowerCase()) || currentUser;
     }
 
