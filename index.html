@@ -25,7 +25,6 @@
     .weekday { font-weight: bold; text-align: center; padding: 8px 0; background: #e2e8f0; border-radius: 6px; font-size: 0.85em; color: #475569; }
     .weekday.weekend { color: #ef4444; }
     
-    /* 電腦版樣式 (TimeTree 質感風格) */
     .day-cell { 
       background: white; 
       border: 1px solid #e2e8f0; 
@@ -46,7 +45,6 @@
     .lunar-text { font-size: 0.68em; color: #94a3b8; font-weight: normal; }
     .holiday-name { font-size: 0.65em; color: #ef4444; font-weight: bold; margin-left: 2px; }
 
-    /* 電腦版標籤 */
     .tag-item {
       border-radius: 4px;
       margin-bottom: 3px;
@@ -60,24 +58,15 @@
       box-shadow: 0 1px 2px rgba(0,0,0,0.06);
     }
 
-    /* 手機版樣式 */
     @media (max-width: 767px) {
       body { padding: 6px 4px; }
       .card { padding: 10px; }
       .day-cell { min-height: 80px; padding: 4px 2px; }
       .day-num { font-size: 0.8em; }
       .lunar-text { font-size: 0.6em; }
-
-      .tag-item {
-        font-size: 0.65em;
-        padding: 1px 3px;
-        margin-bottom: 2px;
-        border-radius: 3px;
-        text-align: center;
-      }
+      .tag-item { font-size: 0.65em; padding: 1px 3px; margin-bottom: 2px; border-radius: 3px; text-align: center; }
     }
 
-    /* 懸浮加號按鈕 (+) 修正垂直居中 */
     .fab-btn {
       position: fixed;
       right: calc(50vw - 530px);
@@ -100,7 +89,6 @@
     }
     .fab-btn:active { transform: scale(0.92); }
 
-    /* 彈窗 */
     .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 100; }
     .modal-content { background: white; padding: 18px; border-radius: 14px; width: 92%; max-width: 420px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); max-height: 90vh; overflow-y: auto; }
     
@@ -109,7 +97,6 @@
     .schedule-item:last-child { border-bottom: none; }
     .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
 
-    /* 多選日曆小格子 */
     .multi-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin: 10px 0; }
     .multi-weekday { font-size: 0.75em; text-align: center; font-weight: bold; color: #64748b; padding-bottom: 4px; }
     .multi-weekday.weekend { color: #ef4444; }
@@ -119,7 +106,7 @@
     .multi-day.disabled-other-type { background: #e2e8f0; color: #94a3b8; opacity: 0.7; cursor: not-allowed; font-weight: bold; }
     .multi-day.disabled { opacity: 0.3; cursor: not-allowed; }
 
-    .emp-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #eee; width: 100%; }
+    .emp-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; font-size: 0.85em; }
   </style>
 </head>
 <body>
@@ -134,17 +121,24 @@
 
     <div id="loginForm" style="margin-top: 8px;">
       <div class="flex">
-        <input type="text" id="loginUser" placeholder="暱稱" style="width: 38%;">
-        <input type="password" id="loginPass" placeholder="密碼" style="width: 38%;">
+        <input type="text" id="loginUser" placeholder="暱稱" style="width: 38%;" onkeydown="handleLoginEnter(event)">
+        <input type="password" id="loginPass" placeholder="密碼" style="width: 38%;" onkeydown="handleLoginEnter(event)">
         <button onclick="login()">登入</button>
       </div>
     </div>
 
     <div id="registerForm" style="display: none; margin-top: 8px;">
-      <div class="flex">
-        <input type="text" id="regUser" placeholder="暱稱" style="width: 30%;">
-        <input type="password" id="regPass" placeholder="密碼" style="width: 30%;">
-        <input type="color" id="regColor" value="#3b82f6" title="選擇代表顏色" style="width: 28px; height: 30px; padding: 0; border:none; background:none; cursor:pointer;">
+      <div style="margin-bottom: 6px;" class="flex">
+        <input type="text" id="regUser" placeholder="暱稱" style="width: 48%;">
+        <input type="password" id="regPass" placeholder="密碼" style="width: 48%;">
+      </div>
+      <div class="flex" style="justify-content: space-between;">
+        <div class="flex" style="font-size: 0.8em;">
+          <span>代表色:</span> <input type="color" id="regColor" value="#3b82f6" style="width: 28px; height: 26px; padding: 0; border:none; background:none; cursor:pointer;">
+        </div>
+        <div class="flex" style="font-size: 0.8em;">
+          <span>到職日:</span> <input type="date" id="regHireDate" style="padding: 4px;">
+        </div>
         <button onclick="register()">註冊</button>
       </div>
     </div>
@@ -159,7 +153,6 @@
         (<span id="userRoleText">--</span>)
       </div>
       <div class="flex">
-        <!-- 員工專用：隨時更改代表顏色 -->
         <input type="color" id="updateColorInput" title="更改我的代表顏色" style="width: 28px; height: 26px; padding: 0; border:none; background:none; cursor:pointer;" onchange="updateMyColor(this.value)">
         <button class="secondary" style="font-size:0.75em; padding:3px 6px;" onclick="logout()">登出</button>
       </div>
@@ -213,20 +206,17 @@
   <div class="modal-content">
     <h3 style="font-size:1em; margin-bottom:8px;">✏️ 快速批量排休</h3>
     
-    <!-- 選擇人員 (主管特權) -->
     <div id="targetEmpSelectBox" style="display:none; margin-bottom:8px;">
-      <label style="font-size:0.8em; font-weight:bold;">對象：</label>
+      <label style="font-size:0.80em; font-weight:bold;">對象：</label>
       <select id="targetEmpSelect" style="width:100%; margin-top:2px;" onchange="onTargetEmpChange()"></select>
     </div>
 
-    <!-- 選擇假別 -->
     <div style="font-size:0.8em; font-weight:bold; margin-bottom:4px;">1. 選擇假別：</div>
     <div class="flex" style="margin-bottom:10px;">
       <button id="btnTypeOff" style="flex:1; background:#3b82f6; padding: 8px 4px;" onclick="selectType('休')">期望休假</button>
       <button id="btnTypeSpec" style="flex:1; background:#64748b; padding: 8px 4px;" onclick="selectType('指休')">指定休假</button>
     </div>
 
-    <!-- 選擇日期網格 -->
     <div style="font-size:0.8em; font-weight:bold;">2. 點擊選擇日期（同假別可多選/取消）：</div>
     <div class="multi-grid" id="multiCalendarGrid"></div>
 
@@ -263,12 +253,7 @@
   let userExistingSchedules = {}; 
   let selectedMultiDates = []; 
 
-  const holidays = {
-    "2026-01-01": "元旦", "2026-02-16": "除夕", "2026-02-17": "初一",
-    "2026-02-18": "初二", "2026-02-19": "初三", "2026-02-28": "和平紀念",
-    "2026-04-04": "兒童節", "2026-04-05": "清明節", "2026-06-19": "端午節",
-    "2026-09-25": "中秋節", "2026-10-10": "國慶日"
-  };
+  let holidays = {}; // 自動從政府 API 抓取
 
   const lunarNames = ["初一","初二","初三","初四","初五","初六","初七","初八","初九","初十",
                       "十一","十二","十三","十四","十五","十六","十七","十八","十九","二十",
@@ -282,6 +267,39 @@
   };
 
   function capitalizeName(str) { return str ? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase() : ""; }
+  function getTodayDateStr() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  // 自動從政府 API 抓取行政院人事行政總處辦公日曆表 (包含國定假日、補假、彈性放假)
+  async function fetchHolidays() {
+    try {
+      const res = await fetch(`https://cdn.jsdelivr.net/gh/ruyisi/Taiwan-Holidays-Calendar/data/${currentYear}.json`);
+      if (res.ok) {
+        const data = await res.json();
+        // 格式化放入 holidays 物件
+        holidays = {};
+        data.forEach(item => {
+          // item.date: "20260101", item.isHoliday: true, item.name: "開國紀念日"
+          if (item.isHoliday) {
+            let y = item.date.substring(0,4);
+            let m = item.date.substring(4,6);
+            let d = item.date.substring(6,8);
+            holidays[`${y}-${m}-${d}`] = item.description || "放假";
+          }
+        });
+      }
+    } catch(e) {
+      // 網路失敗時的備用預設重要假日
+      holidays = {
+        [`${currentYear}-01-01`]: "元旦", [`${currentYear}-02-28`]: "和平紀念",
+        [`${currentYear}-04-04`]: "兒童節", [`${currentYear}-04-05`]: "清明節",
+        [`${currentYear}-05-01`]: "勞動節", [`${currentYear}-10-10`]: "國慶日"
+      };
+    }
+    renderCalendar();
+  }
 
   function initData() {
     if (useFirebase) {
@@ -291,15 +309,50 @@
           state = val;
           if (!state.employees) state.employees = [];
           if (!state.schedules) state.schedules = {};
+          // 確保舊員工資料也有欄位
+          state.employees.forEach(e => {
+            if (!e.hireDate) e.hireDate = getTodayDateStr();
+            if (!e.resignDate) e.resignDate = "";
+          });
         }
-        checkAutoLogin();
-        renderCalendar();
+        checkAutoRemoveExpiredEmployees();
       });
     } else {
-      const local = localStorage.getItem('scheduleStateV4');
-      if (local) state = JSON.parse(local);
+      const local = localStorage.getItem('scheduleStateV6');
+      if (local) {
+        state = JSON.parse(local);
+        state.employees.forEach(e => {
+          if (!e.hireDate) e.hireDate = getTodayDateStr();
+          if (!e.resignDate) e.resignDate = "";
+        });
+      }
+      checkAutoRemoveExpiredEmployees();
+    }
+  }
+
+  function checkAutoRemoveExpiredEmployees() {
+    const todayStr = getTodayDateStr();
+    let hasChanges = false;
+
+    state.employees = state.employees.filter(emp => {
+      if (emp.resignDate && emp.resignDate <= todayStr) {
+        hasChanges = true;
+        for (let dateStr in state.schedules) {
+          state.schedules[dateStr] = state.schedules[dateStr].filter(s => s.empName.toLowerCase() !== emp.name.toLowerCase());
+        }
+        return false;
+      }
+      return true;
+    });
+
+    if (hasChanges) {
+      commitChanges(() => {
+        checkAutoLogin();
+        fetchHolidays();
+      });
+    } else {
       checkAutoLogin();
-      renderCalendar();
+      fetchHolidays();
     }
   }
 
@@ -317,12 +370,14 @@
         if (currentUser) showLoggedInUI();
       } catch(e) {}
     } else if (currentUser && currentUser.role === 'employee') {
-      // 即時同步最新資料（例如顏色被改掉時）
       const emp = state.employees.find(e => e.username.toLowerCase() === currentUser.username.toLowerCase());
       if (emp) {
         currentUser = { ...emp, role: 'employee' };
         document.getElementById('userColorDot').style.background = currentUser.color;
         document.getElementById('updateColorInput').value = currentUser.color;
+      } else {
+        logout();
+        alert("⚠️ 您的帳號已達離職生效日，已被系統自動註銷。");
       }
     }
   }
@@ -333,12 +388,15 @@
         if (!err && callback) callback();
       });
     } else {
-      localStorage.setItem('scheduleStateV4', JSON.stringify(state));
+      localStorage.setItem('scheduleStateV6', JSON.stringify(state));
       if (callback) callback();
     }
   }
 
-  window.onload = () => { initData(); };
+  window.onload = () => { 
+    document.getElementById('regHireDate').value = getTodayDateStr();
+    initData(); 
+  };
 
   function toggleAuthMode() {
     isRegisterMode = !isRegisterMode;
@@ -348,10 +406,16 @@
     document.getElementById('registerForm').style.display = isRegisterMode ? "block" : "none";
   }
 
+  function handleLoginEnter(event) {
+    if (event.key === 'Enter') login();
+  }
+
   function register() {
     const rawInput = document.getElementById('regUser').value.trim();
     const pass = document.getElementById('regPass').value.trim();
     const color = document.getElementById('regColor').value;
+    const hireDate = document.getElementById('regHireDate').value || getTodayDateStr();
+    
     if (!rawInput || !pass) return alert("請填寫暱稱與密碼！");
 
     const formattedName = capitalizeName(rawInput);
@@ -359,7 +423,15 @@
       return alert("該暱稱已被使用！");
     }
 
-    const newEmp = { id: Date.now().toString(), username: formattedName, pass, name: formattedName, color };
+    const newEmp = { 
+      id: Date.now().toString(), 
+      username: formattedName, 
+      pass, 
+      name: formattedName, 
+      color, 
+      hireDate,
+      resignDate: "" 
+    };
     state.employees.push(newEmp);
     commitChanges(() => {
       currentUser = { ...newEmp, role: 'employee' };
@@ -394,7 +466,7 @@
     
     if (currentUser.role === 'admin') {
       document.getElementById('adminPanel').style.display = 'block';
-      document.getElementById('updateColorInput').style.display = 'none'; // 主管不需要改顏色
+      document.getElementById('updateColorInput').style.display = 'none';
       renderEmpManagementList();
     } else {
       document.getElementById('adminPanel').style.display = 'none';
@@ -414,7 +486,6 @@
     renderCalendar();
   }
 
-  // 讓員工隨時更改自己的代表顏色，並且一併更新已排日期的標籤顏色
   function updateMyColor(newColor) {
     if (!currentUser || currentUser.role === 'admin') return;
     
@@ -424,7 +495,6 @@
       currentUser.color = newColor;
     }
 
-    // 同步更新所有已排行程中的顏色
     for (let dateStr in state.schedules) {
       state.schedules[dateStr].forEach(s => {
         if (s.empName.toLowerCase() === currentUser.name.toLowerCase()) {
@@ -443,38 +513,64 @@
   function renderEmpManagementList() {
     const list = document.getElementById('empManagementList');
     list.innerHTML = state.employees.map(e => `
-      <div class="emp-row">
-        <div style="font-size:0.85em;"><span class="dot" style="background:${e.color}"></span><strong>${e.name}</strong></div>
-        <div>
-          <button class="danger" style="font-size:0.7em;" onclick="deleteEmployee('${e.username}', '${e.name}')">刪除/離職</button>
+      <div class="emp-card">
+        <div class="flex" style="justify-content: space-between; margin-bottom: 4px;">
+          <div><span class="dot" style="background:${e.color}"></span><strong>${e.name}</strong></div>
+          <div class="flex">
+            <button class="secondary" style="font-size:0.7em; padding:2px 6px;" onclick="resetEmpPassword('${e.username}')">重置密碼</button>
+            <button class="danger" style="font-size:0.7em; padding:2px 6px;" onclick="deleteEmployee('${e.username}', '${e.name}')">刪除/離職</button>
+          </div>
+        </div>
+        <div style="font-size: 0.75em; color: #64748b;" class="flex">
+          <span>到職日: <strong>${e.hireDate || '未設定'}</strong></span>
+          <span style="margin-left: 8px;">離職日: <strong>${e.resignDate || '無'}</strong></span>
+          <button class="secondary" style="font-size: 0.65em; padding: 1px 4px; margin-left: auto;" onclick="editResignDate('${e.username}')">設定離職日</button>
         </div>
       </div>
     `).join('');
   }
 
-  // 主管刪除員工：可選擇從哪個日期開始清除後續排休，或直接全部清除
+  function resetEmpPassword(username) {
+    const newPass = prompt(`請輸入要幫「${username}」設定的新密碼：`);
+    if (!newPass) return;
+
+    const emp = state.employees.find(e => e.username.toLowerCase() === username.toLowerCase());
+    if (emp) {
+      emp.pass = newPass.trim();
+      commitChanges(() => {
+        alert(`✅ 員工 ${username} 的密碼已重置成功！`);
+      });
+    }
+  }
+
+  function editResignDate(username) {
+    const emp = state.employees.find(e => e.username.toLowerCase() === username.toLowerCase());
+    if (!emp) return;
+
+    let dateInput = prompt(`請輸入「${emp.name}」的離職生效日期 (格式: YYYY-MM-DD)\n若要取消離職日請留空：`, emp.resignDate || "");
+    if (dateInput === null) return;
+
+    emp.resignDate = dateInput.trim();
+
+    commitChanges(() => {
+      renderEmpManagementList();
+      alert(`✅ 離職日已更新！`);
+    });
+  }
+
   function deleteEmployee(username, name) {
-    let dateInput = prompt(`請輸入該員工的「離職生效日期」(格式: YYYY-MM-DD)\n若要刪除該員工所有月份的排休，請直接留空按確定：`, `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`);
-    
-    if (dateInput === null) return; // 按取消
+    if (!confirm(`確定要立即刪除員工 ${name} 及其所有排休嗎？`)) return;
 
-    dateInput = dateInput.trim();
-
-    // 1. 從員工名單中移除
     state.employees = state.employees.filter(e => e.username.toLowerCase() !== username.toLowerCase());
 
-    // 2. 清除排休紀錄
     for (let dateStr in state.schedules) {
-      if (dateInput === "" || dateStr >= dateInput) {
-        // 如果符合刪除條件（大於等於離職日期，或未指定日期全清），過濾掉該員工
-        state.schedules[dateStr] = state.schedules[dateStr].filter(s => s.empName.toLowerCase() !== name.toLowerCase());
-      }
+      state.schedules[dateStr] = state.schedules[dateStr].filter(s => s.empName.toLowerCase() !== name.toLowerCase());
     }
 
     commitChanges(() => {
       renderEmpManagementList();
       renderCalendar();
-      alert(`✅ 已成功將員工 ${name} 移除，並自動清理其後續排休！`);
+      alert(`✅ 已成功將員工 ${name} 移除！`);
     });
   }
 
@@ -501,7 +597,6 @@
       const isRedDay = isWeekend || holidayName !== "";
       
       const lunarText = lunarNames[(day - 1) % 30];
-
       const daySchedules = (state.schedules && state.schedules[dateStr]) || [];
 
       let tagsHTML = "";
@@ -625,14 +720,22 @@
     const deadline = new Date(state.deadline);
     const isOverDeadline = (currentUser.role !== 'admin' && now > deadline);
 
+    let empToApply = currentUser;
+    if (currentUser.role === 'admin') {
+      const targetUsername = document.getElementById('targetEmpSelect').value;
+      empToApply = state.employees.find(e => e.username.toLowerCase() === targetUsername.toLowerCase()) || currentUser;
+    }
+    const empResignDate = empToApply && empToApply.resignDate ? empToApply.resignDate : null;
+
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const isSelected = selectedMultiDates.includes(dateStr);
       const existingType = userExistingSchedules[dateStr];
       const isOtherTypeOccupied = existingType && existingType !== selectedType;
+      const isAfterResign = empResignDate && dateStr >= empResignDate;
 
       let cssClass = "";
-      if (isOverDeadline) {
+      if (isOverDeadline || isAfterResign) {
         cssClass = "disabled";
       } else if (isOtherTypeOccupied) {
         cssClass = "disabled-other-type"; 
@@ -642,7 +745,7 @@
 
       grid.innerHTML += `
         <div class="multi-day ${cssClass}" 
-             onclick="${isOverDeadline || isOtherTypeOccupied ? '' : `toggleSelectDate('${dateStr}')`}">
+             onclick="${isOverDeadline || isAfterResign || isOtherTypeOccupied ? '' : `toggleSelectDate('${dateStr}')`}">
           ${day}
         </div>
       `;
@@ -671,6 +774,9 @@
 
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      
+      if (empToApply.resignDate && dateStr >= empToApply.resignDate) continue;
+
       const isCheckedInModal = selectedMultiDates.includes(dateStr);
       const existingType = userExistingSchedules[dateStr];
 
@@ -701,7 +807,7 @@
     currentMonth += delta;
     if (currentMonth < 0) { currentMonth = 11; currentYear--; }
     if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-    renderCalendar();
+    fetchHolidays(); // 切換月份時自動抓取該年份的假日資料
   }
 </script>
 
