@@ -7,6 +7,8 @@
   <!-- 引入 Firebase 雲端資料庫 -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <!-- 引入精準農曆與節氣計算套件 lunar-javascript -->
+  <script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.6.12/lunar.js"></script>
   <style>
     :root { --primary: #4f46e5; --bg: #f8fafc; }
     * { box-sizing: border-box; }
@@ -252,27 +254,6 @@
   let selectedType = '休'; 
   let userExistingSchedules = {}; 
   let selectedMultiDates = []; 
-
-  const lunarNames = ["初一","初2","初三","初四","初五","初六","初七","初八","初九","初十",
-                      "十一","十二","十三","十四","十五","十六","十七","十八","十九","二十",
-                      "廿一","廿二","廿三","廿四","廿五","廿六","廿七","廿八","廿九","三十"];
-
-  // 內建 2026 年行政院人事行政總處政府行政機關辦公日曆表國定假日/重要節日對照表
-  const officialHolidays2026 = {
-    "2026-01-01": "元旦",
-    "2026-02-16": "農曆春節",
-    "2026-02-17": "農曆春節",
-    "2026-02-18": "農曆春節",
-    "2026-02-19": "農曆春節",
-    "2026-02-20": "農曆春節",
-    "2026-02-28": "和平紀念日",
-    "2026-04-04": "兒童節",
-    "2026-04-05": "清明節",
-    "2026-05-01": "勞動節",
-    "2026-06-19": "端午節",
-    "2026-09-25": "中秋節",
-    "2026-10-10": "國慶日"
-  };
 
   let state = {
     deadline: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-20T23:59`,
@@ -589,11 +570,19 @@
       const dayObj = new Date(currentYear, currentMonth, day);
       const isWeekend = (dayObj.getDay() === 0 || dayObj.getDay() === 6);
       
-      // 從內建 2026 國定假日對照表讀取
-      const holidayName = (currentYear === 2026 && officialHolidays2026[dateStr]) ? officialHolidays2026[dateStr] : "";
-      const isRedDay = isWeekend || holidayName !== "";
+      // 利用 lunar-javascript 套件動態計算精準農曆與節日
+      const solarObj = Solar.fromYmd(currentYear, currentMonth + 1, day);
+      const lunarObj = solarObj.getLunar();
       
-      const lunarText = lunarNames[(day - 1) % 30];
+      const lunarDayStr = lunarObj.getDayInChinese(); // 例如「初一」、「十五」
+      
+      // 抓取農曆節日（如中秋節、端午節等）或節氣
+      const lunarFestivals = lunarObj.getFestivals();
+      const solarFestivals = solarObj.getFestivals();
+      const allFestivals = [...lunarFestivals, ...solarFestivals];
+      const holidayName = allFestivals.length > 0 ? allFestivals[0] : "";
+
+      const isRedDay = isWeekend || holidayName !== "";
       const daySchedules = (state.schedules && state.schedules[dateStr]) || [];
 
       let tagsHTML = "";
@@ -606,7 +595,7 @@
         <div class="day-cell" onclick="openViewModal('${dateStr}')">
           <div class="day-header">
             <span class="day-num ${isRedDay ? 'is-holiday':''}">${day} ${holidayName ? `<span class="holiday-name">${holidayName}</span>`:''}</span>
-            <span class="lunar-text">${lunarText}</span>
+            <span class="lunar-text">${lunarDayStr}</span>
           </div>
           ${tagsHTML}
         </div>
@@ -787,7 +776,7 @@
         state.schedules[dateStr].push({
           empName: capitalizeName(empToApply.name),
           type: selectedType,
-          color: empToApply.color || '#3b82f6'
+5          color: empToApply.color || '#3b82f6'
         });
       }
     }
