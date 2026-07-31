@@ -8,122 +8,117 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <style>
-    :root { --primary: #4f46e5; --bg: #f3f4f6; }
+    :root { --primary: #4f46e5; --bg: #f8fafc; }
     * { box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 12px 8px; background: var(--bg); color: #333; }
-    .container { max-width: 960px; margin: 0 auto; }
-    .card { background: white; padding: 12px 14px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 10px; }
-    h2, h3, h4 { margin-top: 0; }
-    .flex { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-    button { background: var(--primary); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85em; }
-    button.secondary { background: #6b7280; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 12px 8px; background: var(--bg); color: #1e293b; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    .card { background: white; padding: 14px 16px; border-radius: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 12px; }
+    .flex { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    button { background: var(--primary); color: white; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 0.85em; font-weight: 600; }
+    button.secondary { background: #64748b; }
     button.danger { background: #ef4444; }
-    button.success { background: #10b981; font-weight: bold; }
-    input, select { padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.85em; }
+    button.success { background: #10b981; }
+    input, select { padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.85em; }
     
-    .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; width: 100%; }
-    .weekday { font-weight: bold; text-align: center; padding: 6px 0; background: #e5e7eb; border-radius: 4px; font-size: 0.85em; }
+    .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; width: 100%; }
+    .weekday { font-weight: bold; text-align: center; padding: 8px 0; background: #e2e8f0; border-radius: 6px; font-size: 0.85em; color: #475569; }
+    .weekday.weekend { color: #ef4444; }
     
     /* -------------------------------------------------------------
-       1. 電腦版樣式 (螢幕 > 768px)
+       1. 電腦版樣式 (TimeTree 寬敞質感風格)
        ------------------------------------------------------------- */
     .day-cell { 
       background: white; 
-      border: 1px solid #e5e7eb; 
-      min-height: 90px; 
-      padding: 4px; 
-      border-radius: 6px; 
+      border: 1px solid #e2e8f0; 
+      min-height: 110px; /* 超大格子 */
+      padding: 6px; 
+      border-radius: 8px; 
       cursor: pointer; 
       position: relative;
       overflow-y: auto;
+      transition: all 0.15s ease;
     }
-    .day-cell.other-month { opacity: 0.25; background: #f9fafb; }
-    .day-num { font-weight: bold; font-size: 0.85em; margin-bottom: 4px; line-height: 1; color: #444; }
+    .day-cell:hover { border-color: var(--primary); box-shadow: 0 2px 8px rgba(79,70,229,0.12); }
+    .day-cell.other-month { opacity: 0.3; background: #f1f5f9; }
     
-    /* 電腦版標籤：單行滿色好看樣式 */
-    .tag-container {
+    .day-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+    .day-num { font-weight: bold; font-size: 0.9em; color: #334155; }
+    .day-num.is-holiday { color: #ef4444; } /* 假日/紅字顏色 */
+    .lunar-text { font-size: 0.68em; color: #94a3b8; font-weight: normal; }
+    .holiday-name { font-size: 0.65em; color: #ef4444; font-weight: bold; margin-left: 2px; }
+
+    /* 電腦版標籤：滿色膠囊樣式 */
+    .tag-item {
       border-radius: 4px;
       margin-bottom: 3px;
       padding: 2px 6px;
       color: white;
       font-size: 0.75em;
-      font-weight: bold;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.06);
     }
-    .tag-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .tag-type { font-size: 0.9em; opacity: 0.9; margin-left: 4px; }
 
     /* -------------------------------------------------------------
        2. 手機版樣式 (螢幕 <= 767px)
        ------------------------------------------------------------- */
     @media (max-width: 767px) {
-      body { padding: 8px 4px; }
-      .card { padding: 8px 6px; }
-      .day-cell { min-height: 95px; padding: 3px; }
-      .day-num { font-size: 0.75em; margin-bottom: 2px; }
+      body { padding: 6px 4px; }
+      .card { padding: 10px; }
+      .day-cell { min-height: 80px; padding: 4px 2px; }
+      .day-num { font-size: 0.8em; }
+      .lunar-text { font-size: 0.6em; }
 
-      /* 手機版標籤：滿寬上下兩行 */
-      .tag-container {
-        flex-direction: column;
-        padding: 0;
-        border-radius: 4px;
-        overflow: hidden;
-      }
-      .tag-name {
+      /* 手機版標籤：單行符號標記法 */
+      .tag-item {
         font-size: 0.65em;
-        padding: 2px;
+        padding: 1px 3px;
+        margin-bottom: 2px;
+        border-radius: 3px;
         text-align: center;
-        line-height: 1.1;
-        width: 100%;
-      }
-      .tag-type {
-        font-size: 0.6em;
-        padding: 1px 2px 2px 2px;
-        text-align: center;
-        line-height: 1.1;
-        width: 100%;
-        margin-left: 0;
-        border-top: 1px solid rgba(255,255,255,0.3);
       }
     }
 
-    /* 超過人數的「+更多」提示 */
-    .more-tag {
-      font-size: 0.65em;
-      color: #6b7280;
-      text-align: center;
-      font-weight: bold;
-      margin-top: 2px;
-    }
-
-    .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 100; }
-    .modal-content { background: white; padding: 18px; border-radius: 12px; width: 90%; max-width: 360px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-    .option-btn { width: 100%; text-align: left; padding: 8px 12px; margin-bottom: 6px; border-radius: 8px; border: none; color: white; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9em; }
-    .dot { width: 8px; height: 8px; border-radius: 50%; background: white; display: inline-block; }
-    
-    /* 彈窗內的休假名單清單區 */
-    .schedule-list-box {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      padding: 8px 12px;
-      margin-bottom: 12px;
-      max-height: 150px;
-      overflow-y: auto;
-    }
-    .schedule-item {
+    /* -------------------------------------------------------------
+       3. 懸浮加號按鈕 (Floating Action Button)
+       ------------------------------------------------------------- */
+    .fab-btn {
+      position: fixed;
+      right: 20px;
+      bottom: 25px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      font-size: 28px;
       display: flex;
-      justify-content: space-between;
+      justify-content: center;
       align-items: center;
-      padding: 4px 0;
-      border-bottom: 1px dashed #cbd5e1;
-      font-size: 0.9em;
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+      cursor: pointer;
+      z-index: 90;
+      transition: transform 0.2s;
     }
+    .fab-btn:active { transform: scale(0.92); }
+
+    /* 彈窗 */
+    .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 100; }
+    .modal-content { background: white; padding: 18px; border-radius: 14px; width: 92%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); max-height: 90vh; overflow-y: auto; }
+    
+    .schedule-list-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; margin: 8px 0; }
+    .schedule-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px dashed #cbd5e1; font-size: 0.9em; }
     .schedule-item:last-child { border-bottom: none; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+
+    /* 多選日曆小格子 */
+    .multi-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin: 10px 0; }
+    .multi-day { text-align: center; padding: 8px 0; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.85em; cursor: pointer; }
+    .multi-day.selected { background: var(--primary); color: white; font-weight: bold; border-color: var(--primary); }
+    .multi-day.disabled { opacity: 0.3; cursor: not-allowed; }
 
     .emp-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #eee; width: 100%; }
     .save-bar { background: #fffbebfb; border: 1px solid #fcd34d; padding: 8px 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
@@ -132,14 +127,13 @@
 <body>
 
 <div class="container">
-  <!-- 登入 / 註冊卡片 -->
+  <!-- 登入卡片 -->
   <div class="card" id="loginCard">
     <div class="flex" style="justify-content: space-between;">
       <h3 id="authTitle" style="margin:0; font-size: 1em;">🔑 使用者登入</h3>
       <button class="secondary" style="font-size:0.75em; padding:3px 6px;" onclick="toggleAuthMode()" id="toggleAuthBtn">註冊</button>
     </div>
 
-    <!-- 登入表單 -->
     <div id="loginForm" style="margin-top: 8px;">
       <div class="flex">
         <input type="text" id="loginUser" placeholder="暱稱" style="width: 38%;">
@@ -148,7 +142,6 @@
       </div>
     </div>
 
-    <!-- 註冊表單 (預設隱藏) -->
     <div id="registerForm" style="display: none; margin-top: 8px;">
       <div class="flex">
         <input type="text" id="regUser" placeholder="暱稱" style="width: 32%;">
@@ -172,8 +165,7 @@
       </div>
     </div>
 
-    <!-- 修改密碼區 -->
-    <div id="changePassPanel" style="display: none; margin-top: 8px; border-top: 1px dotted #ccc; padding-top: 8px; background: #f9fafb; padding: 6px; border-radius: 6px;">
+    <div id="changePassPanel" style="display: none; margin-top: 8px; border-top: 1px dotted #ccc; padding-top: 8px;">
       <h4 style="margin-bottom: 4px; font-size: 0.85em;">✏️ 修改密碼</h4>
       <div class="flex">
         <input type="password" id="oldPass" placeholder="舊密碼" style="width: 36%;">
@@ -182,34 +174,30 @@
       </div>
     </div>
 
-    <!-- 主管專屬管理區 -->
+    <!-- 主管管理區 -->
     <div id="adminPanel" style="display: none; margin-top: 8px; border-top: 1px solid #eee; padding-top: 8px;">
       <h3 style="font-size:0.95em; margin-bottom: 6px;">⚙️ 主管管理面板</h3>
-      
-      <h4 style="font-size:0.8em; margin-bottom: 4px;">1. 設定截止時間</h4>
       <div class="flex">
         <input type="date" id="deadlineDate">
         <input type="time" id="deadlineTime" value="23:59">
-        <button onclick="saveDeadline()">儲存</button>
+        <button onclick="saveDeadline()">儲存截止時間</button>
       </div>
       <p id="currentDeadlineText" style="font-size:0.75em; color: #666; margin: 4px 0 8px 0;"></p>
-
-      <h4 style="font-size:0.8em; margin-bottom: 4px;">2. 員工管理</h4>
       <div id="empManagementList"></div>
     </div>
   </div>
 
-  <!-- 未儲存提示與儲存按鈕條 -->
+  <!-- 未儲存提示 -->
   <div class="save-bar" id="saveBar" style="display: none;">
     <span style="color: #b45309; font-weight: bold; font-size: 0.8em;">⚠️ 有未儲存變更！</span>
     <button class="success" style="font-size: 0.8em; padding: 5px 8px;" onclick="commitChanges()">💾 送出 / 儲存</button>
   </div>
 
-  <!-- 月曆區 -->
-  <div class="card" style="padding: 8px 4px;">
+  <!-- 主月曆卡片 -->
+  <div class="card" style="padding: 10px 6px;">
     <div class="calendar-header">
       <button onclick="changeMonth(-1)">❮ 上月</button>
-      <h3 id="monthTitle" style="margin:0; font-size: 1em;"></h3>
+      <h3 id="monthTitle" style="margin:0; font-size: 1.1em; font-weight: bold;"></h3>
       <button onclick="changeMonth(1)">下月 ❯</button>
     </div>
 
@@ -217,20 +205,46 @@
   </div>
 </div>
 
-<!-- 彈窗 -->
-<div class="modal" id="scheduleModal">
-  <div class="modal-content">
-    <h3 id="modalTitle" style="font-size:1em; margin-bottom:10px;">📅 2026-07-23</h3>
-    
-    <!-- 當日排休完整名單區 -->
-    <div style="font-size: 0.8em; font-weight: bold; color: #475569; margin-bottom: 4px;">👥 當天排休人員：</div>
-    <div class="schedule-list-box" id="modalScheduleList"></div>
+<!-- 右下角懸浮按鈕 (+) -->
+<div class="fab-btn" id="fabBtn" onclick="openMultiScheduleModal()" style="display: none;">+</div>
 
-    <!-- 設定個人排休按鈕區 -->
-    <div style="font-size: 0.8em; font-weight: bold; color: #475569; margin-bottom: 4px;" id="actionTitle">✏️ 設定排休：</div>
-    <div id="modalOptions"></div>
+<!-- 1. 查看當日排休人員彈窗 -->
+<div class="modal" id="viewModal">
+  <div class="modal-content">
+    <h3 id="viewModalTitle" style="font-size:1em; margin-bottom:8px;">📅 日期</h3>
+    <div style="font-size: 0.8em; font-weight: bold; color: #475569;">👥 當日排休名單：</div>
+    <div class="schedule-list-box" id="viewScheduleList"></div>
+    <button class="secondary" style="width:100%; margin-top:8px;" onclick="closeModal('viewModal')">關閉</button>
+  </div>
+</div>
+
+<!-- 2. 多選排休彈窗 -->
+<div class="modal" id="multiModal">
+  <div class="modal-content">
+    <h3 style="font-size:1em; margin-bottom:8px;">✏️ 快速批量排休</h3>
     
-    <button class="secondary" style="width:100%; margin-top:8px; padding:8px;" onclick="closeModal()">關閉</button>
+    <!-- 選擇人員 (主管特權) -->
+    <div id="targetEmpSelectBox" style="display:none; margin-bottom:8px;">
+      <label style="font-size:0.8em; font-weight:bold;">對象：</label>
+      <select id="targetEmpSelect" style="width:100%; margin-top:2px;"></select>
+    </div>
+
+    <!-- 選擇假別 -->
+    <div style="font-size:0.8em; font-weight:bold; margin-bottom:4px;">1. 選擇假別：</div>
+    <div class="flex" style="margin-bottom:10px;">
+      <button id="btnTypeOff" style="flex:1; background:#3b82f6;" onclick="selectType('休')">普通休假 (休)</button>
+      <button id="btnTypeSpec" style="flex:1; background:#64748b;" onclick="selectType('指休')">指定休假 (＊指休)</button>
+      <button id="btnTypeClear" style="flex:1; background:#ef4444;" onclick="selectType('清除')">🗑️ 清除</button>
+    </div>
+
+    <!-- 選擇日期網格 -->
+    <div style="font-size:0.8em; font-weight:bold;">2. 點擊選擇日期（可多選）：</div>
+    <div class="multi-grid" id="multiCalendarGrid"></div>
+
+    <div class="flex" style="margin-top:12px;">
+      <button class="success" style="flex:2;" onclick="saveMultiSchedule()">確認儲存</button>
+      <button class="secondary" style="flex:1;" onclick="closeModal('multiModal')">取消</button>
+    </div>
   </div>
 </div>
 
@@ -247,16 +261,31 @@
       firebase.initializeApp(firebaseConfig);
       db = firebase.database();
       useFirebase = true;
-    } catch(e) { console.log("Firebase 設定錯誤"); }
+    } catch(e) {}
   }
 
   let today = new Date();
   let currentYear = today.getFullYear();
   let currentMonth = today.getMonth();
   let currentUser = null;
-  let selectedDateStr = "";
   let isRegisterMode = false;
   let hasUnsavedChanges = false;
+  
+  let selectedType = '休'; // 預設選取休
+  let selectedMultiDates = []; // 儲存批量選擇的日期
+
+  // 國定假日表（範例對照）
+  const holidays = {
+    "2026-01-01": "元旦", "2026-02-16": "除夕", "2026-02-17": "初一",
+    "2026-02-18": "初二", "2026-02-19": "初三", "2026-02-28": "和平紀念",
+    "2026-04-04": "兒童節", "2026-04-05": "清明節", "2026-06-19": "端午節",
+    "2026-09-25": "中秋節", "2026-10-10": "國慶日"
+  };
+
+  // 簡易農曆天數簡稱對照
+  const lunarNames = ["初一","初二","初三","初四","初五","初六","初七","初八","初九","初十",
+                      "十一","十二","十三","十四","十五","十六","十七","十八","十九","二十",
+                      "廿一","廿二","廿三","廿四","廿五","廿六","廿七","廿八","廿九","三十"];
 
   let state = {
     deadline: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-20T23:59`,
@@ -265,39 +294,23 @@
     schedules: {}
   };
 
-  function capitalizeName(str) {
-    if (!str) return "";
-    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-  }
-
-  function getLighterColor(hex, alpha = 0.25) {
-    let c = hex.replace('#', '');
-    if (c.length === 3) c = c.split('').map(x => x + x).join('');
-    const num = parseInt(c, 16);
-    const r = (num >> 16) & 255;
-    const g = (num >> 8) & 255;
-    const b = num & 255;
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  }
+  function capitalizeName(str) { return str ? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase() : ""; }
 
   function initData() {
     if (useFirebase) {
       db.ref('scheduleState').on('value', (snapshot) => {
         if (hasUnsavedChanges) return;
-
         const val = snapshot.val();
         if (val) {
           state = val;
           if (!state.employees) state.employees = [];
           if (!state.schedules) state.schedules = {};
         }
-        
         checkAutoLogin();
         renderCalendar();
-        if (currentUser && currentUser.role === 'admin') renderEmpManagementList();
       });
     } else {
-      const local = localStorage.getItem('scheduleStateV3');
+      const local = localStorage.getItem('scheduleStateV4');
       if (local) state = JSON.parse(local);
       checkAutoLogin();
       renderCalendar();
@@ -311,33 +324,26 @@
         const savedUser = JSON.parse(savedUserJSON);
         if (savedUser.role === 'admin') {
           currentUser = { username: 'Admin', role: 'admin', name: '主管' };
-          showLoggedInUI();
         } else {
           const emp = state.employees.find(e => e.username.toLowerCase() === savedUser.username.toLowerCase());
-          if (emp) {
-            currentUser = { ...emp, role: 'employee' };
-            showLoggedInUI();
-          } else {
-            localStorage.removeItem('schedule_current_user');
-          }
+          if (emp) currentUser = { ...emp, role: 'employee' };
         }
+        if (currentUser) showLoggedInUI();
       } catch(e) {}
     }
   }
 
   function commitChanges() {
     if (useFirebase) {
-      db.ref('scheduleState').set(state, (error) => {
-        if (error) {
-          alert("❌ 儲存失敗：" + error.message);
-        } else {
+      db.ref('scheduleState').set(state, (err) => {
+        if (!err) {
           hasUnsavedChanges = false;
           document.getElementById('saveBar').style.display = 'none';
           alert("✅ 已送出並儲存！");
         }
       });
     } else {
-      localStorage.setItem('scheduleStateV3', JSON.stringify(state));
+      localStorage.setItem('scheduleStateV4', JSON.stringify(state));
       hasUnsavedChanges = false;
       document.getElementById('saveBar').style.display = 'none';
       alert("✅ 已儲存！");
@@ -349,10 +355,7 @@
     document.getElementById('saveBar').style.display = 'flex';
   }
 
-  window.onload = () => {
-    initData();
-    updateDeadlineUI();
-  };
+  window.onload = () => { initData(); };
 
   function toggleAuthMode() {
     isRegisterMode = !isRegisterMode;
@@ -366,30 +369,23 @@
     const rawInput = document.getElementById('regUser').value.trim();
     const pass = document.getElementById('regPass').value.trim();
     const color = document.getElementById('regColor').value;
-
     if (!rawInput || !pass) return alert("請填寫暱稱與密碼！");
 
     const formattedName = capitalizeName(rawInput);
-    const lowerInput = rawInput.toLowerCase();
-
-    if (lowerInput === 'admin' || state.employees.some(e => e.username.toLowerCase() === lowerInput)) {
+    if (rawInput.toLowerCase() === 'admin' || state.employees.some(e => e.username.toLowerCase() === rawInput.toLowerCase())) {
       return alert("該暱稱已被使用！");
     }
 
     const newEmp = { id: Date.now().toString(), username: formattedName, pass, name: formattedName, color };
     state.employees.push(newEmp);
-    
     commitChanges();
 
-    alert(`🎉 註冊成功！暱稱：[${formattedName}]`);
     currentUser = { ...newEmp, role: 'employee' };
     localStorage.setItem('schedule_current_user', JSON.stringify(currentUser));
     showLoggedInUI();
   }
 
   function login() {
-    if (hasUnsavedChanges && !confirm("有未儲存變更，確定繼續嗎？")) return;
-
     const rawUser = document.getElementById('loginUser').value.trim();
     const pass = document.getElementById('loginPass').value.trim();
     const lowerUser = rawUser.toLowerCase();
@@ -398,113 +394,45 @@
       currentUser = { username: 'Admin', role: 'admin', name: '主管' };
     } else {
       const emp = state.employees.find(e => e.username.toLowerCase() === lowerUser && e.pass === pass);
-      if (emp) {
-        currentUser = { ...emp, role: 'employee' };
-      } else {
-        return alert("❌ 帳號或密碼錯誤！");
-      }
+      if (emp) currentUser = { ...emp, role: 'employee' };
+      else return alert("❌ 帳號或密碼錯誤！");
     }
 
     localStorage.setItem('schedule_current_user', JSON.stringify(currentUser));
-    hasUnsavedChanges = false;
-    document.getElementById('saveBar').style.display = 'none';
     showLoggedInUI();
   }
 
   function showLoggedInUI() {
     document.getElementById('loginCard').style.display = 'none';
     document.getElementById('userCard').style.display = 'block';
+    document.getElementById('fabBtn').style.display = 'flex';
     document.getElementById('currentUserText').innerText = currentUser.name;
     document.getElementById('userRoleText').innerText = currentUser.role === 'admin' ? "主管" : "員工";
     
     if (currentUser.role === 'admin') {
       document.getElementById('adminPanel').style.display = 'block';
       renderEmpManagementList();
-    } else {
-      document.getElementById('adminPanel').style.display = 'none';
     }
-
     renderCalendar();
   }
 
   function logout() {
-    if (hasUnsavedChanges && !confirm("有未儲存變更，確定登出嗎？")) return;
-
     currentUser = null;
     localStorage.removeItem('schedule_current_user');
-    hasUnsavedChanges = false;
-    document.getElementById('saveBar').style.display = 'none';
     document.getElementById('loginCard').style.display = 'block';
     document.getElementById('userCard').style.display = 'none';
-    document.getElementById('changePassPanel').style.display = 'none';
-    document.getElementById('loginUser').value = '';
-    document.getElementById('loginPass').value = '';
+    document.getElementById('fabBtn').style.display = 'none';
     renderCalendar();
-  }
-
-  function toggleChangePassPanel() {
-    const panel = document.getElementById('changePassPanel');
-    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-  }
-
-  function changePassword() {
-    const oldP = document.getElementById('oldPass').value.trim();
-    const newP = document.getElementById('newPass').value.trim();
-
-    if (!oldP || !newP) return alert("請輸入舊密碼與新密碼！");
-
-    if (currentUser.role === 'admin') {
-      if (state.admin.pass !== oldP) return alert("❌ 舊密碼錯誤！");
-      state.admin.pass = newP;
-    } else {
-      const emp = state.employees.find(e => e.username.toLowerCase() === currentUser.username.toLowerCase());
-      if (!emp || emp.pass !== oldP) return alert("❌ 舊密碼錯誤！");
-      emp.pass = newP;
-      currentUser.pass = newP;
-    }
-
-    commitChanges();
-    document.getElementById('oldPass').value = '';
-    document.getElementById('newPass').value = '';
-    toggleChangePassPanel();
-    alert("✅ 密碼修改成功！");
-  }
-
-  function resetEmpPass(empUsername) {
-    if (!confirm(`確定要將 [${empUsername}] 密碼重置為 1234 嗎？`)) return;
-    const emp = state.employees.find(e => e.username.toLowerCase() === empUsername.toLowerCase());
-    if (emp) {
-      emp.pass = '1234';
-      commitChanges();
-      alert(`✅ 已重置密碼為 1234`);
-    }
-  }
-
-  function deleteEmp(empUsername) {
-    if (!confirm(`確定要刪除員工 [${empUsername}] 嗎？`)) return;
-    state.employees = state.employees.filter(e => e.username.toLowerCase() !== empUsername.toLowerCase());
-    commitChanges();
-    renderEmpManagementList();
-    renderCalendar();
-    alert(`已刪除 [${empUsername}]`);
   }
 
   function renderEmpManagementList() {
     const list = document.getElementById('empManagementList');
-    if (state.employees.length === 0) {
-      list.innerHTML = `<p style="color:#888; font-size:0.8em;">尚無員工註冊</p>`;
-      return;
-    }
-
     list.innerHTML = state.employees.map(e => `
       <div class="emp-row">
-        <div style="font-size:0.85em;">
-          <span class="dot" style="background:${e.color}"></span>
-          <strong>${capitalizeName(e.name)}</strong>
-        </div>
-        <div class="flex">
-          <button class="secondary" style="font-size:0.7em; padding:3px 6px;" onclick="resetEmpPass('${e.username}')">重置</button>
-          <button class="danger" style="font-size:0.7em; padding:3px 6px;" onclick="deleteEmp('${e.username}')">刪除</button>
+        <div style="font-size:0.85em;"><span class="dot" style="background:${e.color}"></span><strong>${e.name}</strong></div>
+        <div>
+          <button class="secondary" style="font-size:0.7em;" onclick="resetEmpPass('${e.username}')">重置</button>
+          <button class="danger" style="font-size:0.7em;" onclick="deleteEmp('${e.username}')">刪除</button>
         </div>
       </div>
     `).join('');
@@ -516,70 +444,53 @@
     grid.innerHTML = '';
 
     const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
-    weekdays.forEach(w => {
-      grid.innerHTML += `<div class="weekday">${w}</div>`;
+    weekdays.forEach((w, idx) => {
+      grid.innerHTML += `<div class="weekday ${idx===0||idx===6 ? 'weekend':''}">${w}</div>`;
     });
 
     const firstDay = new Date(currentYear, currentMonth, 1).getDay();
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
-    for (let i = 0; i < firstDay; i++) {
-      grid.innerHTML += `<div class="day-cell other-month"></div>`;
-    }
-
-    const isMobile = window.innerWidth <= 767;
+    for (let i = 0; i < firstDay; i++) grid.innerHTML += `<div class="day-cell other-month"></div>`;
 
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const dayObj = new Date(currentYear, currentMonth, day);
+      const isWeekend = (dayObj.getDay() === 0 || dayObj.getDay() === 6);
+      const holidayName = holidays[dateStr] || "";
+      const isRedDay = isWeekend || holidayName !== "";
+      
+      const lunarText = lunarNames[(day - 1) % 30]; // 簡易農曆示意
+
       const daySchedules = (state.schedules && state.schedules[dateStr]) || [];
 
       let tagsHTML = "";
-      
       daySchedules.forEach((s) => {
-        const mainColor = s.color || '#3b82f6';
-        const lighterBg = getLighterColor(mainColor, 0.2);
-
-        if (isMobile) {
-          // 手機版：上下兩行
-          tagsHTML += `
-            <div class="tag-container" style="background-color: ${mainColor}; border: 1px solid ${mainColor};">
-              <div class="tag-name">${capitalizeName(s.empName)}</div>
-              <div class="tag-type" style="background-color: ${lighterBg}; color: white;">${s.type}</div>
-            </div>
-          `;
-        } else {
-          // 電腦版：單行滿色好看樣式
-          tagsHTML += `
-            <div class="tag-container" style="background-color: ${mainColor};">
-              <span class="tag-name">${capitalizeName(s.empName)}</span>
-              <span class="tag-type">${s.type}</span>
-            </div>
-          `;
-        }
+        // 新邏輯：指定休假加全形＊，普通休假純名字
+        const displayName = (s.type === '指休') ? `＊${capitalizeName(s.empName)}` : capitalizeName(s.empName);
+        tagsHTML += `<div class="tag-item" style="background-color: ${s.color};">${displayName}</div>`;
       });
 
       grid.innerHTML += `
-        <div class="day-cell" onclick="openModal('${dateStr}')">
-          <div class="day-num">${day}</div>
+        <div class="day-cell" onclick="openViewModal('${dateStr}')">
+          <div class="day-header">
+            <span class="day-num ${isRedDay ? 'is-holiday':''}">${day} ${holidayName ? `<span class="holiday-name">${holidayName}</span>`:''}</span>
+            <span class="lunar-text">${lunarText}</span>
+          </div>
           ${tagsHTML}
         </div>
       `;
     }
   }
 
-  function openModal(dateStr) {
-    if (!currentUser) return alert("🔒 請先登入！");
+  /* 點擊主頁日期：純查看當天排休名單 */
+  function openViewModal(dateStr) {
+    const listDiv = document.getElementById('viewScheduleList');
+    document.getElementById('viewModalTitle').innerText = `📅 ${dateStr}`;
 
-    selectedDateStr = dateStr;
-    const modal = document.getElementById('scheduleModal');
-    const optionsDiv = document.getElementById('modalOptions');
-    const listDiv = document.getElementById('modalScheduleList');
-    document.getElementById('modalTitle').innerText = `📅 ${dateStr}`;
-
-    // 1. 渲染當日已排休人員清單
     const daySchedules = (state.schedules && state.schedules[dateStr]) || [];
     if (daySchedules.length === 0) {
-      listDiv.innerHTML = `<div style="color:#94a3b8; font-size:0.85em; text-align:center; padding:6px;">尚無人排休</div>`;
+      listDiv.innerHTML = `<div style="color:#94a3b8; font-size:0.85em; text-align:center; padding:6px;">本日無人排休</div>`;
     } else {
       listDiv.innerHTML = daySchedules.map(s => `
         <div class="schedule-item">
@@ -587,93 +498,108 @@
             <span class="dot" style="background:${s.color};"></span>
             <strong>${capitalizeName(s.empName)}</strong>
           </div>
-          <span style="font-size:0.8em; font-weight:bold; color:${s.color}; background:${getLighterColor(s.color, 0.15)}; padding:2px 6px; border-radius:4px;">
-            ${s.type}
+          <span style="font-size:0.8em; font-weight:bold; color:${s.color};">
+            ${s.type === '指休' ? '＊指定休假' : '普通休假'}
           </span>
         </div>
       `).join('');
     }
 
-    // 2. 判斷截止時間
+    document.getElementById('viewModal').style.display = 'flex';
+  }
+
+  /* 點擊右下角 Floating (+) 按鈕：多選排休視窗 */
+  function openMultiScheduleModal() {
+    if (!currentUser) return alert("請先登入！");
+    
+    // 主管選擇對象
+    const targetBox = document.getElementById('targetEmpSelectBox');
+    const targetSelect = document.getElementById('targetEmpSelect');
+    if (currentUser.role === 'admin') {
+      targetBox.style.display = 'block';
+      targetSelect.innerHTML = state.employees.map(e => `<option value="${e.username}">${e.name}</option>`).join('');
+    } else {
+      targetBox.style.display = 'none';
+    }
+
+    selectedMultiDates = [];
+    selectType('休');
+    renderMultiCalendar();
+    document.getElementById('multiModal').style.display = 'flex';
+  }
+
+  function selectType(type) {
+    selectedType = type;
+    document.getElementById('btnTypeOff').style.opacity = type === '休' ? '1' : '0.5';
+    document.getElementById('btnTypeSpec').style.opacity = type === '指休' ? '1' : '0.5';
+    document.getElementById('btnTypeClear').style.opacity = type === '清除' ? '1' : '0.5';
+  }
+
+  function renderMultiCalendar() {
+    const grid = document.getElementById('multiCalendarGrid');
+    grid.innerHTML = '';
+
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     const now = new Date();
     const deadline = new Date(state.deadline);
     const isOverDeadline = (currentUser.role !== 'admin' && now > deadline);
 
-    optionsDiv.innerHTML = '';
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const isSelected = selectedMultiDates.includes(dateStr);
 
-    if (isOverDeadline) {
-      optionsDiv.innerHTML = `<p style="color:#ef4444; font-size:0.85em; margin:4px 0;">⚠️ 已超過主管設定的截止時間，無法修改排休。</p>`;
-    } else {
-      let targetEmployees = (currentUser.role === 'admin') ? state.employees : [currentUser];
-
-      targetEmployees.forEach(emp => {
-        const formattedName = capitalizeName(emp.name);
-        ['休', '指休'].forEach(type => {
-          optionsDiv.innerHTML += `
-            <button class="option-btn" style="background-color: ${emp.color}" onclick="addSchedule('${formattedName}', '${type}', '${emp.color}')">
-              <span class="dot"></span> ${formattedName} - ${type}
-            </button>
-          `;
-        });
-      });
-
-      optionsDiv.innerHTML += `
-        <button class="option-btn danger" style="margin-top: 6px;" onclick="clearSchedule()">
-          🗑️ 清除該日我的行程
-        </button>
+      grid.innerHTML += `
+        <div class="multi-day ${isSelected ? 'selected':''} ${isOverDeadline ? 'disabled':''}" 
+             onclick="${isOverDeadline ? '' : `toggleSelectDate('${dateStr}')`}">
+          ${day}
+        </div>
       `;
     }
-
-    modal.style.display = 'flex';
   }
 
-  function closeModal() {
-    document.getElementById('scheduleModal').style.display = 'none';
-  }
-
-  function addSchedule(empName, type, color) {
-    if (!state.schedules) state.schedules = {};
-    if (!state.schedules[selectedDateStr]) state.schedules[selectedDateStr] = [];
-    
-    state.schedules[selectedDateStr] = state.schedules[selectedDateStr].filter(s => s.empName.toLowerCase() !== empName.toLowerCase());
-    state.schedules[selectedDateStr].push({ empName: capitalizeName(empName), type, color });
-    
-    markUnsaved();
-    renderCalendar();
-    openModal(selectedDateStr); // 重新更新彈窗裡的名單
-  }
-
-  function clearSchedule() {
-    if (!state.schedules || !state.schedules[selectedDateStr]) return;
-
-    if (currentUser.role === 'admin') {
-      delete state.schedules[selectedDateStr];
+  function toggleSelectDate(dateStr) {
+    if (selectedMultiDates.includes(dateStr)) {
+      selectedMultiDates = selectedMultiDates.filter(d => d !== dateStr);
     } else {
-      state.schedules[selectedDateStr] = state.schedules[selectedDateStr].filter(s => s.empName.toLowerCase() !== currentUser.name.toLowerCase());
+      selectedMultiDates.push(dateStr);
+    }
+    renderMultiCalendar();
+  }
+
+  function saveMultiSchedule() {
+    if (selectedMultiDates.length === 0) return alert("請至少選擇一天日期！");
+
+    let empToApply = currentUser;
+    if (currentUser.role === 'admin') {
+      const targetUsername = document.getElementById('targetEmpSelect').value;
+      empToApply = state.employees.find(e => e.username.toLowerCase() === targetUsername.toLowerCase()) || currentUser;
     }
 
+    if (!state.schedules) state.schedules = {};
+
+    selectedMultiDates.forEach(dateStr => {
+      if (!state.schedules[dateStr]) state.schedules[dateStr] = [];
+
+      // 先移除該員當天的舊行程
+      state.schedules[dateStr] = state.schedules[dateStr].filter(s => s.empName.toLowerCase() !== empToApply.name.toLowerCase());
+
+      if (selectedType !== '清除') {
+        state.schedules[dateStr].push({
+          empName: capitalizeName(empToApply.name),
+          type: selectedType,
+          color: empToApply.color || '#3b82f6'
+        });
+      }
+    });
+
     markUnsaved();
     renderCalendar();
-    openModal(selectedDateStr); // 重新更新彈窗裡的名單
+    closeModal('multiModal');
+    alert(`✅ 已完成 ${selectedMultiDates.length} 天的排休設定！`);
   }
 
-  function saveDeadline() {
-    const date = document.getElementById('deadlineDate').value;
-    const time = document.getElementById('deadlineTime').value;
-    if (!date) return alert("請選擇日期");
-
-    state.deadline = `${date}T${time}`;
-    commitChanges();
-    updateDeadlineUI();
-  }
-
-  function updateDeadlineUI() {
-    document.getElementById('currentDeadlineText').innerText = `截止時間：${state.deadline.replace('T', ' ')}`;
-  }
-
+  function closeModal(id) { document.getElementById(id).style.display = 'none'; }
   function changeMonth(delta) {
-    if (hasUnsavedChanges && !confirm("有未儲存變更，確定切換嗎？")) return;
-    
     currentMonth += delta;
     if (currentMonth < 0) { currentMonth = 11; currentYear--; }
     if (currentMonth > 11) { currentMonth = 0; currentYear++; }
