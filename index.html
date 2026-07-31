@@ -212,7 +212,7 @@
     <!-- 選擇人員 (主管特權) -->
     <div id="targetEmpSelectBox" style="display:none; margin-bottom:8px;">
       <label style="font-size:0.8em; font-weight:bold;">對象：</label>
-      <select id="targetEmpSelect" style="width:100%; margin-top:2px;"></select>
+      <select id="targetEmpSelect" style="width:100%; margin-top:2px;" onchange="onTargetEmpChange()"></select>
     </div>
 
     <!-- 選擇假別 -->
@@ -224,7 +224,7 @@
     </div>
 
     <!-- 選擇日期網格 -->
-    <div style="font-size:0.8em; font-weight:bold;">2. 點擊選擇日期（可多選）：</div>
+    <div style="font-size:0.8em; font-weight:bold;">2. 點擊選擇日期（可多選，再次點擊取消）：</div>
     <div class="multi-grid" id="multiCalendarGrid"></div>
 
     <div class="flex" style="margin-top:12px;">
@@ -491,10 +491,36 @@
       targetBox.style.display = 'none';
     }
 
-    selectedMultiDates = [];
+    loadCurrentEmpExistingDates();
     selectType('休');
     renderMultiCalendar();
     document.getElementById('multiModal').style.display = 'flex';
+  }
+
+  function onTargetEmpChange() {
+    loadCurrentEmpExistingDates();
+    renderMultiCalendar();
+  }
+
+  // 自動載入該員工目前月份已經排過的日期
+  function loadCurrentEmpExistingDates() {
+    let empToApply = currentUser;
+    if (currentUser.role === 'admin') {
+      const targetUsername = document.getElementById('targetEmpSelect').value;
+      empToApply = state.employees.find(e => e.username.toLowerCase() === targetUsername.toLowerCase()) || currentUser;
+    }
+
+    selectedMultiDates = [];
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const daySchedules = (state.schedules && state.schedules[dateStr]) || [];
+      const hasScheduled = daySchedules.some(s => s.empName.toLowerCase() === empToApply.name.toLowerCase());
+      if (hasScheduled) {
+        selectedMultiDates.push(dateStr);
+      }
+    }
   }
 
   function selectType(type) {
@@ -546,8 +572,6 @@
   }
 
   function saveMultiSchedule() {
-    if (selectedMultiDates.length === 0) return alert("請至少選擇一天日期！");
-
     let empToApply = currentUser;
     if (currentUser.role === 'admin') {
       const targetUsername = document.getElementById('targetEmpSelect').value;
@@ -556,24 +580,32 @@
 
     if (!state.schedules) state.schedules = {};
 
-    selectedMultiDates.forEach(dateStr => {
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+    // 遍歷本月所有日子，根據這次彈窗內「最終有沒有被勾選」來決定要新增還是移除
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const isCheckedInModal = selectedMultiDates.includes(dateStr);
+
       if (!state.schedules[dateStr]) state.schedules[dateStr] = [];
 
+      // 先把該員工在這天的舊紀錄移除
       state.schedules[dateStr] = state.schedules[dateStr].filter(s => s.empName.toLowerCase() !== empToApply.name.toLowerCase());
 
-      if (selectedType !== '清除') {
+      // 如果在彈窗中有被勾選，且假別不是清除，就寫入新紀錄
+      if (isCheckedInModal && selectedType !== '清除') {
         state.schedules[dateStr].push({
           empName: capitalizeName(empToApply.name),
           type: selectedType,
           color: empToApply.color || '#3b82f6'
         });
       }
-    });
+    }
 
     commitChanges(() => {
       renderCalendar();
       closeModal('multiModal');
-      alert(`✅ 已成功儲存 ${selectedMultiDates.length} 天的排休！`);
+      alert(`✅ 排休已成功更新！`);
     });
   }
 
