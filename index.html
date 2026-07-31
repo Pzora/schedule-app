@@ -127,7 +127,6 @@
 </div>
 
 <script>
-  // 已經綁定你的 Firebase 資料庫網址
   const firebaseConfig = {
     databaseURL: "https://schedule-app-8a2fc-default-rtdb.firebaseio.com/" 
   };
@@ -156,6 +155,12 @@
     employees: [],
     schedules: {}
   };
+
+  // 將名字轉換為第一個字母大寫 (如: tom -> Tom, TOM -> Tom)
+  function capitalizeName(str) {
+    if (!str) return "";
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  }
 
   function initData() {
     if (useFirebase) {
@@ -199,32 +204,38 @@
 
   // 員工自主註冊
   function register() {
-    const name = document.getElementById('regUser').value.trim();
+    const rawInput = document.getElementById('regUser').value.trim();
     const pass = document.getElementById('regPass').value.trim();
     const color = document.getElementById('regColor').value;
 
-    if (!name || !pass) return alert("請填寫暱稱與密碼！");
-    if (name === 'admin' || state.employees.some(e => e.username === name)) {
+    if (!rawInput || !pass) return alert("請填寫暱稱與密碼！");
+
+    const formattedName = capitalizeName(rawInput); // 第一字大寫的名子 (如: Tom)
+    const lowerInput = rawInput.toLowerCase();     // 用於不分大小寫比對
+
+    if (lowerInput === 'admin' || state.employees.some(e => e.username.toLowerCase() === lowerInput)) {
       return alert("該暱稱已被使用，請換一個！");
     }
 
-    const newEmp = { id: Date.now().toString(), username: name, pass, name, color };
+    const newEmp = { id: Date.now().toString(), username: formattedName, pass, name: formattedName, color };
     state.employees.push(newEmp);
     saveState();
 
-    alert("🎉 註冊成功！已自動為您登入。");
+    alert(`🎉 註冊成功！暱稱已調整為：[${formattedName}]，自動為您登入。`);
     currentUser = { ...newEmp, role: 'employee' };
     showLoggedInUI();
   }
 
   function login() {
-    const user = document.getElementById('loginUser').value.trim();
+    const rawUser = document.getElementById('loginUser').value.trim();
     const pass = document.getElementById('loginPass').value.trim();
+    const lowerUser = rawUser.toLowerCase();
 
-    if (user === state.admin.username && pass === state.admin.pass) {
-      currentUser = { username: 'admin', role: 'admin', name: '主管' };
+    if (lowerUser === state.admin.username.toLowerCase() && pass === state.admin.pass) {
+      currentUser = { username: 'Admin', role: 'admin', name: '主管' };
     } else {
-      const emp = state.employees.find(e => e.username === user && e.pass === pass);
+      // 支援不分大小寫登入比對
+      const emp = state.employees.find(e => e.username.toLowerCase() === lowerUser && e.pass === pass);
       if (emp) {
         currentUser = { ...emp, role: 'employee' };
       } else {
@@ -277,7 +288,7 @@
       if (state.admin.pass !== oldP) return alert("❌ 舊密碼輸入錯誤！");
       state.admin.pass = newP;
     } else {
-      const emp = state.employees.find(e => e.username === currentUser.username);
+      const emp = state.employees.find(e => e.username.toLowerCase() === currentUser.username.toLowerCase());
       if (!emp || emp.pass !== oldP) return alert("❌ 舊密碼輸入錯誤！");
       emp.pass = newP;
       currentUser.pass = newP;
@@ -293,7 +304,7 @@
   // 主管：一鍵重置員工密碼為 1234
   function resetEmpPass(empUsername) {
     if (!confirm(`確定要將 [${empUsername}] 的密碼重置為 1234 嗎？`)) return;
-    const emp = state.employees.find(e => e.username === empUsername);
+    const emp = state.employees.find(e => e.username.toLowerCase() === empUsername.toLowerCase());
     if (emp) {
       emp.pass = '1234';
       saveState();
@@ -304,7 +315,7 @@
   // 主管：一鍵刪除員工
   function deleteEmp(empUsername) {
     if (!confirm(`⚠️ 確定要刪除員工 [${empUsername}] 嗎？此動作無法復原！`)) return;
-    state.employees = state.employees.filter(e => e.username !== empUsername);
+    state.employees = state.employees.filter(e => e.username.toLowerCase() !== empUsername.toLowerCase());
     saveState();
     renderEmpManagementList();
     renderCalendar();
@@ -322,7 +333,7 @@
       <div class="emp-row">
         <div>
           <span class="dot" style="background:${e.color}"></span>
-          <strong>${e.name}</strong>
+          <strong>${capitalizeName(e.name)}</strong>
         </div>
         <div class="flex">
           <button class="secondary" style="font-size:0.8em; padding:4px 8px;" onclick="resetEmpPass('${e.username}')">🔄 重置密碼(1234)</button>
@@ -354,7 +365,7 @@
       const daySchedules = (state.schedules && state.schedules[dateStr]) || [];
 
       let tagsHTML = daySchedules.map(s => 
-        `<span class="tag" style="background-color: ${s.color};">${s.empName}${s.type}</span>`
+        `<span class="tag" style="background-color: ${s.color};">${capitalizeName(s.empName)}${s.type}</span>`
       ).join('');
 
       grid.innerHTML += `
@@ -385,10 +396,11 @@
     let targetEmployees = (currentUser.role === 'admin') ? state.employees : [currentUser];
 
     targetEmployees.forEach(emp => {
+      const formattedName = capitalizeName(emp.name);
       ['休', '指休'].forEach(type => {
         optionsDiv.innerHTML += `
-          <button class="option-btn" style="background-color: ${emp.color}" onclick="addSchedule('${emp.name}', '${type}', '${emp.color}')">
-            <span class="dot"></span> ${emp.name}${type}
+          <button class="option-btn" style="background-color: ${emp.color}" onclick="addSchedule('${formattedName}', '${type}', '${emp.color}')">
+            <span class="dot"></span> ${formattedName}${type}
           </button>
         `;
       });
@@ -411,8 +423,9 @@
     if (!state.schedules) state.schedules = {};
     if (!state.schedules[selectedDateStr]) state.schedules[selectedDateStr] = [];
     
-    state.schedules[selectedDateStr] = state.schedules[selectedDateStr].filter(s => s.empName !== empName);
-    state.schedules[selectedDateStr].push({ empName, type, color });
+    // 清除舊紀錄時不區分大小寫
+    state.schedules[selectedDateStr] = state.schedules[selectedDateStr].filter(s => s.empName.toLowerCase() !== empName.toLowerCase());
+    state.schedules[selectedDateStr].push({ empName: capitalizeName(empName), type, color });
     
     saveState();
     renderCalendar();
@@ -425,7 +438,7 @@
     if (currentUser.role === 'admin') {
       delete state.schedules[selectedDateStr];
     } else {
-      state.schedules[selectedDateStr] = state.schedules[selectedDateStr].filter(s => s.empName !== currentUser.name);
+      state.schedules[selectedDateStr] = state.schedules[selectedDateStr].filter(s => s.empName.toLowerCase() !== currentUser.name.toLowerCase());
     }
 
     saveState();
